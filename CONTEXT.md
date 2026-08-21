@@ -1,10 +1,15 @@
 # User/Team Role Inspector
 
-An XrmToolBox plugin (read-only) that, for a selected Dataverse user, reports every security
-role they effectively hold and where each one comes from: assigned straight to the user, or
-inherited through membership in a team that itself holds the role. Built for orgs on the
-**modernized business units** (matrix data-access) model, where a role's business unit is
-independent of the user's or team's own business unit.
+An XrmToolBox plugin (read-only) with two modes, switched via a toggle above the master list:
+
+- **User mode**: for a selected Dataverse user, reports every security role they effectively
+  hold and where each one comes from: assigned straight to the user, or inherited through
+  membership in a team that itself holds the role.
+- **Team mode**: for a selected team, reports the roles associated straight to that team and
+  the users who are its members.
+
+Built for orgs on the **modernized business units** (matrix data-access) model, where a role's
+business unit is independent of the user's or team's own business unit.
 
 ## Language
 
@@ -42,3 +47,13 @@ Shown for context; distinct from any Role Business Unit or Team Business Unit in
 **Source**:
 Which path an Assignment came through: `Direct`, or `Team` (naming the specific team). Drives
 grouping in the tree view and a column in the grid view.
+
+**Team Role** (Team mode):
+A security role associated straight to a team via `teamroles` - the same fact a Team-Derived
+Assignment reports from the user's side, shown here from the team's side instead. Carries the
+role's own Business Unit, same as a Direct Assignment.
+
+**Team Member** (Team mode):
+A user who belongs to a team via `teammembership`. Team mode's picker/detail carries no
+Assignment or Source concept - it reports the team's own roles and its member users, not
+"assignments" in the User mode sense.

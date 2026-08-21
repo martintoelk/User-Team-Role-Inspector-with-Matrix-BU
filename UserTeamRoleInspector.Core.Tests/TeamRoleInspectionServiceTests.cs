@@ -157,5 +157,60 @@ namespace UserTeamRoleInspector.Core.Tests
             Assert.Equal(0, henry.DirectCount);
             Assert.Equal(0, henry.TeamCount);
         }
+
+        [Fact]
+        public void GetTeamDetail_ReturnsTeamsOwnRolesAndMemberUsers()
+        {
+            var fake = new FakeOrganizationService();
+            var team = fake.SeedTeam(Guid.NewGuid(), "Sales Team", RootBuId, "Root BU");
+            var role = fake.SeedRole(Guid.NewGuid(), "Salesperson", RootBuId, "Root BU");
+            fake.SeedTeamRole(team.Id, role.Id);
+
+            var member = fake.SeedUser(Guid.NewGuid(), "Ivy", RootBuId, "Root BU");
+            var disabledMember = fake.SeedUser(Guid.NewGuid(), "Jack", RootBuId, "Root BU", isDisabled: true);
+            fake.SeedTeamMembership(member.Id, team.Id);
+            fake.SeedTeamMembership(disabledMember.Id, team.Id);
+
+            var sut = new TeamRoleInspectionService(fake);
+
+            var result = sut.GetTeamDetail(team.Id);
+
+            Assert.Equal("Sales Team", result.TeamName);
+            Assert.Equal(RootBuId, result.BusinessUnitId);
+
+            var teamRole = Assert.Single(result.Roles);
+            Assert.Equal(role.Id, teamRole.RoleId);
+            Assert.Equal("Salesperson", teamRole.RoleName);
+            Assert.Equal(RootBuId, teamRole.RoleBusinessUnitId);
+
+            Assert.Equal(2, result.Members.Count);
+            Assert.Contains(result.Members, m => m.UserId == member.Id && !m.IsDisabled);
+            Assert.Contains(result.Members, m => m.UserId == disabledMember.Id && m.IsDisabled);
+        }
+
+        [Fact]
+        public void RetrieveTeams_PopulatesRoleAndMemberCounts()
+        {
+            var fake = new FakeOrganizationService();
+            var team = fake.SeedTeam(Guid.NewGuid(), "Sales Team", RootBuId, "Root BU");
+            var role = fake.SeedRole(Guid.NewGuid(), "Salesperson", RootBuId, "Root BU");
+            fake.SeedTeamRole(team.Id, role.Id);
+            var member = fake.SeedUser(Guid.NewGuid(), "Ivy", RootBuId, "Root BU");
+            fake.SeedTeamMembership(member.Id, team.Id);
+
+            var emptyTeam = fake.SeedTeam(Guid.NewGuid(), "Empty Team", RootBuId, "Root BU");
+
+            var sut = new TeamRoleInspectionService(fake);
+
+            var teams = sut.RetrieveTeams();
+
+            var salesTeam = teams.Single(t => t.Id == team.Id);
+            Assert.Equal(1, salesTeam.RoleCount);
+            Assert.Equal(1, salesTeam.MemberCount);
+
+            var empty = teams.Single(t => t.Id == emptyTeam.Id);
+            Assert.Equal(0, empty.RoleCount);
+            Assert.Equal(0, empty.MemberCount);
+        }
     }
 }

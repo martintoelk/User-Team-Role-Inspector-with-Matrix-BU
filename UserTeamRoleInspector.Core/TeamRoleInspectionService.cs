@@ -104,26 +104,7 @@ namespace UserTeamRoleInspector.Core
         /// twice). Two bulk queries total, independent of user or team count.</summary>
         private Dictionary<Guid, int> RetrieveTeamDerivedRoleCounts()
         {
-            var teamRoleCounts = new Dictionary<Guid, int>();
-            var teamRolesQuery = new QueryExpression(TeamRoles.EntityLogicalName)
-            {
-                ColumnSet = new ColumnSet(TeamRoles.Fields.TeamId),
-                PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
-            };
-            EntityCollection ec;
-            do
-            {
-                ec = _service.RetrieveMultiple(teamRolesQuery);
-                foreach (var r in ec.Entities.Select(e => e.ToEntity<TeamRoles>()))
-                {
-                    if (!r.TeamId.HasValue) continue;
-                    teamRoleCounts.TryGetValue(r.TeamId.Value, out var count);
-                    teamRoleCounts[r.TeamId.Value] = count + 1;
-                }
-                teamRolesQuery.PageInfo.PageNumber++;
-                teamRolesQuery.PageInfo.PagingCookie = ec.PagingCookie;
-            }
-            while (ec.MoreRecords);
+            var teamRoleCounts = RetrieveTeamRoleCounts();
 
             var userCounts = new Dictionary<Guid, int>();
             var membershipQuery = new QueryExpression(TeamMembership.EntityLogicalName)
@@ -131,6 +112,7 @@ namespace UserTeamRoleInspector.Core
                 ColumnSet = new ColumnSet(TeamMembership.Fields.SystemUserId, TeamMembership.Fields.TeamId),
                 PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
             };
+            EntityCollection ec;
             do
             {
                 ec = _service.RetrieveMultiple(membershipQuery);
@@ -147,6 +129,194 @@ namespace UserTeamRoleInspector.Core
             while (ec.MoreRecords);
 
             return userCounts;
+        }
+
+        /// <summary>Role count per team, via one bulk <c>teamroles</c> query grouped in memory -
+        /// shared by the user picker's Team-Derived counts and the team picker's Roles count.</summary>
+        private Dictionary<Guid, int> RetrieveTeamRoleCounts()
+        {
+            var query = new QueryExpression(TeamRoles.EntityLogicalName)
+            {
+                ColumnSet = new ColumnSet(TeamRoles.Fields.TeamId),
+                PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
+            };
+
+            var counts = new Dictionary<Guid, int>();
+            EntityCollection ec;
+            do
+            {
+                ec = _service.RetrieveMultiple(query);
+                foreach (var r in ec.Entities.Select(e => e.ToEntity<TeamRoles>()))
+                {
+                    if (!r.TeamId.HasValue) continue;
+                    counts.TryGetValue(r.TeamId.Value, out var count);
+                    counts[r.TeamId.Value] = count + 1;
+                }
+                query.PageInfo.PageNumber++;
+                query.PageInfo.PagingCookie = ec.PagingCookie;
+            }
+            while (ec.MoreRecords);
+
+            return counts;
+        }
+
+        /// <summary>Member count per team, via one bulk <c>teammembership</c> query grouped in
+        /// memory - the team picker's Members count.</summary>
+        private Dictionary<Guid, int> RetrieveTeamMemberCounts()
+        {
+            var query = new QueryExpression(TeamMembership.EntityLogicalName)
+            {
+                ColumnSet = new ColumnSet(TeamMembership.Fields.TeamId),
+                PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
+            };
+
+            var counts = new Dictionary<Guid, int>();
+            EntityCollection ec;
+            do
+            {
+                ec = _service.RetrieveMultiple(query);
+                foreach (var m in ec.Entities.Select(e => e.ToEntity<TeamMembership>()))
+                {
+                    if (!m.TeamId.HasValue) continue;
+                    counts.TryGetValue(m.TeamId.Value, out var count);
+                    counts[m.TeamId.Value] = count + 1;
+                }
+                query.PageInfo.PageNumber++;
+                query.PageInfo.PagingCookie = ec.PagingCookie;
+            }
+            while (ec.MoreRecords);
+
+            return counts;
+        }
+
+        /// <summary>All teams for the picker, ordered by name, with their own Business Unit and
+        /// Roles/Members counts (mirrors <see cref="RetrieveUsers"/>'s shape).</summary>
+        public List<TeamItem> RetrieveTeams()
+        {
+            var query = new QueryExpression(Team.EntityLogicalName)
+            {
+                ColumnSet = new ColumnSet(Team.Fields.Name, Team.Fields.BusinessUnitId),
+                PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
+            };
+            query.AddOrder(Team.Fields.Name, OrderType.Ascending);
+
+            var list = new List<TeamItem>();
+            EntityCollection ec;
+            do
+            {
+                ec = _service.RetrieveMultiple(query);
+                foreach (var t in ec.Entities.Select(e => e.ToEntity<Team>()))
+                {
+                    list.Add(new TeamItem
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        BusinessUnitId = t.BusinessUnitId?.Id ?? Guid.Empty,
+                        BusinessUnitName = t.BusinessUnitId?.Name ?? string.Empty
+                    });
+                }
+                query.PageInfo.PageNumber++;
+                query.PageInfo.PagingCookie = ec.PagingCookie;
+            }
+            while (ec.MoreRecords);
+
+            var roleCounts = RetrieveTeamRoleCounts();
+            var memberCounts = RetrieveTeamMemberCounts();
+            foreach (var t in list)
+            {
+                roleCounts.TryGetValue(t.Id, out var roleCount);
+                memberCounts.TryGetValue(t.Id, out var memberCount);
+                t.RoleCount = roleCount;
+                t.MemberCount = memberCount;
+            }
+
+            return list;
+        }
+
+        /// <summary>Everything the inspector shows for one selected team: its own roles
+        /// (<c>teamroles</c>) and its member users (<c>teammembership</c>). The team-mode
+        /// counterpart of <see cref="GetAssignments"/>.</summary>
+        public TeamDetailResult GetTeamDetail(Guid teamId)
+        {
+            var columns = new ColumnSet(Team.Fields.Name, Team.Fields.BusinessUnitId);
+            var team = _service.Retrieve(Team.EntityLogicalName, teamId, columns).ToEntity<Team>();
+
+            var result = new TeamDetailResult
+            {
+                TeamId = team.Id,
+                TeamName = team.Name,
+                BusinessUnitId = team.BusinessUnitId?.Id ?? Guid.Empty,
+                BusinessUnitName = team.BusinessUnitId?.Name ?? string.Empty
+            };
+
+            result.Roles.AddRange(GetTeamRoles(teamId));
+            result.Members.AddRange(GetTeamMembers(teamId));
+            return result;
+        }
+
+        private List<TeamRoleItem> GetTeamRoles(Guid teamId)
+        {
+            var query = new QueryExpression(Role.EntityLogicalName)
+            {
+                ColumnSet = new ColumnSet(Role.Fields.Name, Role.Fields.BusinessUnitId),
+                PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
+            };
+            var link = query.AddLink(TeamRoles.EntityLogicalName, Role.Fields.RoleId, TeamRoles.Fields.RoleId);
+            link.LinkCriteria.AddCondition(TeamRoles.Fields.TeamId, ConditionOperator.Equal, teamId);
+
+            var list = new List<TeamRoleItem>();
+            EntityCollection ec;
+            do
+            {
+                ec = _service.RetrieveMultiple(query);
+                foreach (var r in ec.Entities.Select(e => e.ToEntity<Role>()))
+                {
+                    list.Add(new TeamRoleItem
+                    {
+                        RoleId = r.Id,
+                        RoleName = r.Name,
+                        RoleBusinessUnitId = r.BusinessUnitId?.Id ?? Guid.Empty,
+                        RoleBusinessUnitName = r.BusinessUnitId?.Name ?? string.Empty
+                    });
+                }
+                query.PageInfo.PageNumber++;
+                query.PageInfo.PagingCookie = ec.PagingCookie;
+            }
+            while (ec.MoreRecords);
+
+            return list;
+        }
+
+        private List<TeamMemberItem> GetTeamMembers(Guid teamId)
+        {
+            var query = new QueryExpression(SystemUser.EntityLogicalName)
+            {
+                ColumnSet = new ColumnSet(SystemUser.Fields.FullName, SystemUser.Fields.IsDisabled),
+                PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
+            };
+            var link = query.AddLink(TeamMembership.EntityLogicalName, SystemUser.Fields.SystemUserId, TeamMembership.Fields.SystemUserId);
+            link.LinkCriteria.AddCondition(TeamMembership.Fields.TeamId, ConditionOperator.Equal, teamId);
+
+            var list = new List<TeamMemberItem>();
+            EntityCollection ec;
+            do
+            {
+                ec = _service.RetrieveMultiple(query);
+                foreach (var u in ec.Entities.Select(e => e.ToEntity<SystemUser>()))
+                {
+                    list.Add(new TeamMemberItem
+                    {
+                        UserId = u.Id,
+                        Name = u.FullName,
+                        IsDisabled = u.IsDisabled ?? false
+                    });
+                }
+                query.PageInfo.PageNumber++;
+                query.PageInfo.PagingCookie = ec.PagingCookie;
+            }
+            while (ec.MoreRecords);
+
+            return list;
         }
 
         public UserRoleInspectionResult GetAssignments(Guid userId)

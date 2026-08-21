@@ -69,4 +69,49 @@ namespace UserTeamRoleInspector.Core
         public int DirectCount { get; set; }
         public int TeamCount { get; set; }
     }
+
+    /// <summary>One row in the team picker.</summary>
+    public class TeamItem
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public Guid BusinessUnitId { get; set; }
+        public string BusinessUnitName { get; set; }
+
+        /// <summary>Row counts matching <see cref="TeamRoleInspectionService.GetTeamDetail"/>'s
+        /// Roles/Members lists for this team.</summary>
+        public int RoleCount { get; set; }
+        public int MemberCount { get; set; }
+    }
+
+    /// <summary>A role held by a team (<c>teamroles</c>), with the role's own Business Unit -
+    /// the team-mode counterpart of a Direct <see cref="Assignment"/>.</summary>
+    public class TeamRoleItem
+    {
+        public Guid RoleId { get; set; }
+        public string RoleName { get; set; }
+        public Guid RoleBusinessUnitId { get; set; }
+        public string RoleBusinessUnitName { get; set; }
+    }
+
+    /// <summary>A user who belongs to a team (<c>teammembership</c>).</summary>
+    public class TeamMemberItem
+    {
+        public Guid UserId { get; set; }
+        public string Name { get; set; }
+        public bool IsDisabled { get; set; }
+    }
+
+    /// <summary>Everything the inspector shows for one selected team: its own roles and its
+    /// member users. The team-mode counterpart of <see cref="UserRoleInspectionResult"/>.</summary>
+    public class TeamDetailResult
+    {
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; }
+        public Guid BusinessUnitId { get; set; }
+        public string BusinessUnitName { get; set; }
+
+        public List<TeamRoleItem> Roles { get; set; } = new List<TeamRoleItem>();
+        public List<TeamMemberItem> Members { get; set; } = new List<TeamMemberItem>();
+    }
 }

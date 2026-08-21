@@ -12,6 +12,10 @@ namespace UserTeamRoleInspector
 
         private TableLayoutPanel mainTable;
 
+        private Panel pickerModePill;
+        private Button btnPillModeUsers;
+        private Button btnPillModeTeams;
+
         private Label lblUsers;
         private TextBox txtUserFilter;
         private CheckBox chkHideDisabled;
@@ -44,6 +48,10 @@ namespace UserTeamRoleInspector
             this.tsbLoad = new ToolStripButton();
 
             this.mainTable = new TableLayoutPanel();
+
+            this.pickerModePill = new Panel();
+            this.btnPillModeUsers = new Button();
+            this.btnPillModeTeams = new Button();
 
             this.lblUsers = new Label();
             this.txtUserFilter = new TextBox();
@@ -95,6 +103,30 @@ namespace UserTeamRoleInspector
             this.mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             // Left: master list
+            // ---- Users|Teams segmented toggle, above the master list ----
+            this.pickerModePill.Location = new Point(2, 4);
+            this.pickerModePill.Size = new Size(160, 26);
+            this.pickerModePill.BackColor = Color.FromArgb(230, 230, 230);
+
+            this.btnPillModeUsers.Text = "Users";
+            this.btnPillModeUsers.Size = new Size(80, 26);
+            this.btnPillModeUsers.FlatStyle = FlatStyle.Flat;
+            this.btnPillModeUsers.FlatAppearance.BorderSize = 0;
+            this.btnPillModeUsers.Click += new System.EventHandler(this.btnPillModeUsers_Click);
+
+            this.btnPillModeTeams.Text = "Teams";
+            this.btnPillModeTeams.Size = new Size(80, 26);
+            this.btnPillModeTeams.Left = 80;
+            this.btnPillModeTeams.FlatStyle = FlatStyle.Flat;
+            this.btnPillModeTeams.FlatAppearance.BorderSize = 0;
+            this.btnPillModeTeams.Click += new System.EventHandler(this.btnPillModeTeams_Click);
+
+            this.pickerModePill.Controls.Add(this.btnPillModeUsers);
+            this.pickerModePill.Controls.Add(this.btnPillModeTeams);
+
+            var modeHost = new Panel { Dock = DockStyle.Top, Height = 34 };
+            modeHost.Controls.Add(this.pickerModePill);
+
             this.lblUsers.Text = "Users";
             this.lblUsers.Dock = DockStyle.Top;
             this.lblUsers.Height = 20;
@@ -122,7 +154,10 @@ namespace UserTeamRoleInspector
             listPanel.Controls.Add(this.chkHideDisabled);
             listPanel.Controls.Add(this.txtUserFilter);
             listPanel.Controls.Add(this.lblUsers);
+            listPanel.Controls.Add(modeHost);
             this.mainTable.Controls.Add(listPanel, 0, 0);
+
+            SetPillActive(this.btnPillModeUsers, this.btnPillModeTeams);
 
             // Right: detail card + split results grids
             this.detailCard.Dock = DockStyle.Top;
