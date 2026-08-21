@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    XrmToolBox plugin: "User/Team Role Inspector"
+    Targets .NET Framework 4.8 (XrmToolBox host requirement). If your XTB build
+    still runs on 4.6.2, change TargetFramework to net462.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>UserTeamRoleInspector</AssemblyName>
+    <RootNamespace>UserTeamRoleInspector</RootNamespace>
+    <!-- Keep the DLL name clean so it's easy to drop into the XTB Plugins folder -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>1.0.0</Version>
+    <Company>Martin Tölk</Company>
+    <Product>User/Team Role Inspector</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      NuGet id is "XrmToolBoxPackage" (not "XrmToolBox.Extensibility" - that's the assembly/
+      namespace it provides, not the package id). Brings in XrmToolBox.Extensibility,
+      MscrmTools.Xrm.Connection and the Dataverse/CRM SDK core assemblies. Floating "1.*"
+      resolves the latest 1.x at restore time.
+    -->
+    <PackageReference Include="XrmToolBoxPackage" Version="1.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UserTeamRoleInspector.Core\UserTeamRoleInspector.Core.csproj" />
+  </ItemGroup>
+
+</Project>

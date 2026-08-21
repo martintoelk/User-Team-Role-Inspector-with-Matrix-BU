@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+.vs/
+
+# Personal automation script - not for the public repo
+ralph.ps1
+runs/

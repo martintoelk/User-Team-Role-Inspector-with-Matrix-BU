@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>UserTeamRoleInspector</id>
+    <version>$version$</version>
+    <title>User/Team Role Inspector</title>
+    <authors>Martin Tölk</authors>
+    <owners>martintoelk</owners>
+    <license type="expression">MIT</license>
+    <description>Read-only XrmToolBox plugin: pick a Dataverse user and see every security role they effectively hold, direct or via team membership, with the owning business unit for each.</description>
+    <projectUrl>https://github.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU</projectUrl>
+    <!-- Only <icon> is set - nuget.org computes its own hosted iconUrl once indexed, which is
+         the form the XrmToolBox portal validator accepts. Don't add a custom <iconUrl>; see the
+         sibling Assigner repo's nuspec/nuget-checklist-publish skill for why that was rejected.
+         Forward slash here, not backslash: a .nupkg is a zip, zip entries always use "/". -->
+    <icon>images/icon.png</icon>
+    <readme>README.md</readme>
+    <!-- Tags must start with the literal word "XrmToolBox" - that's how the store's crawler finds it. -->
+    <tags>XrmToolBox Plugins UserTeamRoleInspector SecurityRoles Teams BusinessUnits</tags>
+    <dependencies>
+      <!-- "XrmToolBox" is a convention-only id, not an installable NuGet.org package - read by
+           XrmToolBox's own in-app updater as "minimum host version this plugin was built/tested
+           against". Mirrors the version pinned in the sibling Assigner repo's nuspec; revisit
+           once actually built/tested against a specific host build. -->
+      <dependency id="XrmToolBox" version="1.2026.8.76" />
+    </dependencies>
+  </metadata>
+  <files>
+    <!-- Plugin DLL must sit under a "Plugins" folder inside the package. Core.dll is a
+         dependency of the plugin DLL, so it needs to sit alongside it, not under Plugins. -->
+    <file src="UserTeamRoleInspector\bin\Release\UserTeamRoleInspector.dll" target="lib/net48/Plugins/UserTeamRoleInspector.dll" />
+    <file src="UserTeamRoleInspector\bin\Release\UserTeamRoleInspector.Core.dll" target="lib/net48/Plugins/UserTeamRoleInspector.Core.dll" />
+    <file src="README.md" target="README.md" />
+    <!-- Package icon (checklist: "Nuget package has an Icon url") - reuses the plugin's own
+         tile image (BigImageBase64 in Plugin.cs), same as the sibling Assigner repo. -->
+    <file src="nuget\icon.png" target="images/icon.png" />
+  </files>
+</package>

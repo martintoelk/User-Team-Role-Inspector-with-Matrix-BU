@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="UserTeamRoleInspector.Core/UserTeamRoleInspector.Core.csproj" />
+  <Project Path="UserTeamRoleInspector/UserTeamRoleInspector.csproj" />
+  <Project Path="UserTeamRoleInspector.Core.Tests/UserTeamRoleInspector.Core.Tests.csproj" />
+</Solution>
