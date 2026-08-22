@@ -397,7 +397,11 @@ namespace UserTeamRoleInspector.Core
             foreach (var team in teams)
                 list.AddRange(RetrieveTeamRoles(team));
 
-            return list;
+            return list
+                .OrderBy(a => a.SourceTeamName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(a => a.RoleName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(a => a.RoleBusinessUnitName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private class MemberTeam
