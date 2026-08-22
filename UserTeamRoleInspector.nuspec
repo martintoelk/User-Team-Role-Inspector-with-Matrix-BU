@@ -9,11 +9,16 @@
     <license type="expression">MIT</license>
     <description>Read-only XrmToolBox plugin: pick a Dataverse user and see every security role they effectively hold, direct or via team membership, with the owning business unit for each.</description>
     <projectUrl>https://github.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU</projectUrl>
-    <!-- Only <icon> is set - nuget.org computes its own hosted iconUrl once indexed, which is
-         the form the XrmToolBox portal validator accepts. Don't add a custom <iconUrl>; see the
-         sibling Assigner repo's nuspec/nuget-checklist-publish skill for why that was rejected.
-         Forward slash here, not backslash: a .nupkg is a zip, zip entries always use "/". -->
+    <!-- <icon> for modern NuGet clients (nuget.org computes its own hosted URL from this once
+         indexed). Forward slash here, not backslash: a .nupkg is a zip, zip entries always use
+         "/". A prior sibling-repo attempt at also setting <iconUrl> was blamed for a portal
+         rejection, but that repo's nuspec still had a backslash in <icon> at the time - the two
+         were confounded. A real, currently-listed XrmToolBox tool (Xrm.Sdk.PluginRegistration)
+         sets BOTH <icon> and <iconUrl> together, so this repo does the same: <iconUrl> as an
+         explicit fallback for any validator (like the XrmToolBox portal may be) that reads the
+         legacy field directly instead of nuget.org's computed one. -->
     <icon>images/icon.png</icon>
+    <iconUrl>https://raw.githubusercontent.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU/master/nuget/icon.png</iconUrl>
     <readme>README.md</readme>
     <!-- Tags must start with the literal word "XrmToolBox" - that's how the store's crawler finds it. -->
     <tags>XrmToolBox Plugins UserTeamRoleInspector SecurityRoles Teams BusinessUnits</tags>
