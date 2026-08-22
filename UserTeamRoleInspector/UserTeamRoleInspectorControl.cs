@@ -109,6 +109,10 @@ namespace UserTeamRoleInspector
             lblDirectHeader.Text = isUsers ? "Direct Assignments" : "Team Roles";
             lblTeamHeader.Text = isUsers ? "Team-Derived Assignments" : "Team Members";
 
+            ConfigureListView(lbUsers, isUsers
+                ? new[] { "Full Name", "Roles Assigned" }
+                : new[] { "Team Name", "Roles", "Members" });
+
             dgvTeam.Columns.Clear();
             if (isUsers)
                 ConfigureGrid(dgvTeam, "Role", "Role Business Unit", "Team", "Team Business Unit");
@@ -248,13 +252,13 @@ namespace UserTeamRoleInspector
 
             lbUsers.BeginUpdate();
             lbUsers.Items.Clear();
-            lbUsers.Items.AddRange(_filteredUsers.Select(ListLabel).Cast<object>().ToArray());
+            lbUsers.Items.AddRange(_filteredUsers.Select(UserRow).ToArray());
             lbUsers.EndUpdate();
 
             if (previouslySelected.HasValue)
             {
                 var index = _filteredUsers.FindIndex(u => u.Id == previouslySelected.Value);
-                if (index >= 0) lbUsers.SelectedIndex = index;
+                if (index >= 0) SelectListViewIndex(index);
             }
 
             UpdateStatus();
@@ -271,26 +275,33 @@ namespace UserTeamRoleInspector
 
             lbUsers.BeginUpdate();
             lbUsers.Items.Clear();
-            lbUsers.Items.AddRange(_filteredTeams.Select(TeamLabel).Cast<object>().ToArray());
+            lbUsers.Items.AddRange(_filteredTeams.Select(TeamRow).ToArray());
             lbUsers.EndUpdate();
 
             if (previouslySelected.HasValue)
             {
                 var index = _filteredTeams.FindIndex(t => t.Id == previouslySelected.Value);
-                if (index >= 0) lbUsers.SelectedIndex = index;
+                if (index >= 0) SelectListViewIndex(index);
             }
 
             UpdateStatus();
         }
 
-        private static string ListLabel(UserItem u)
+        private void SelectListViewIndex(int index)
         {
-            var label = $"{u.Name}  (Team: {u.TeamCount}, Direct: {u.DirectCount})";
-            return u.IsDisabled ? $"{label}  (disabled)" : label;
+            lbUsers.Items[index].Selected = true;
+            lbUsers.Items[index].EnsureVisible();
         }
 
-        private static string TeamLabel(TeamItem t) =>
-            $"{t.Name}  (Roles: {t.RoleCount}, Members: {t.MemberCount})";
+        private static ListViewItem UserRow(UserItem u)
+        {
+            var name = u.IsDisabled ? $"{u.Name}  (disabled)" : u.Name;
+            var totalRoles = u.DirectCount + u.TeamCount;
+            return new ListViewItem(new[] { name, totalRoles.ToString() });
+        }
+
+        private static ListViewItem TeamRow(TeamItem t) =>
+            new ListViewItem(new[] { t.Name, t.RoleCount.ToString(), t.MemberCount.ToString() });
 
         private void ClearDetail()
         {
@@ -399,14 +410,16 @@ namespace UserTeamRoleInspector
             }
         }
 
+        private int SelectedListViewIndex => lbUsers.SelectedIndices.Count > 0 ? lbUsers.SelectedIndices[0] : -1;
+
         private UserItem GetSelectedUser() =>
-            _mode == PickerMode.Users && lbUsers.SelectedIndex >= 0 && lbUsers.SelectedIndex < _filteredUsers.Count
-                ? _filteredUsers[lbUsers.SelectedIndex]
+            _mode == PickerMode.Users && SelectedListViewIndex >= 0 && SelectedListViewIndex < _filteredUsers.Count
+                ? _filteredUsers[SelectedListViewIndex]
                 : null;
 
         private TeamItem GetSelectedTeam() =>
-            _mode == PickerMode.Teams && lbUsers.SelectedIndex >= 0 && lbUsers.SelectedIndex < _filteredTeams.Count
-                ? _filteredTeams[lbUsers.SelectedIndex]
+            _mode == PickerMode.Teams && SelectedListViewIndex >= 0 && SelectedListViewIndex < _filteredTeams.Count
+                ? _filteredTeams[SelectedListViewIndex]
                 : null;
     }
 }

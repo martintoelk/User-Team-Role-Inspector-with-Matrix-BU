@@ -10,7 +10,7 @@ namespace UserTeamRoleInspector
         private ToolStrip toolStrip;
         private ToolStripButton tsbLoad;
 
-        private TableLayoutPanel mainTable;
+        private SplitContainer mainSplit;
 
         private Panel pickerModePill;
         private Button btnPillModeUsers;
@@ -19,7 +19,7 @@ namespace UserTeamRoleInspector
         private Label lblUsers;
         private TextBox txtUserFilter;
         private CheckBox chkHideDisabled;
-        private ListBox lbUsers;
+        private ListView lbUsers;
 
         private FlowLayoutPanel detailCard;
         private Label lblName;
@@ -47,7 +47,7 @@ namespace UserTeamRoleInspector
             this.toolStrip = new ToolStrip();
             this.tsbLoad = new ToolStripButton();
 
-            this.mainTable = new TableLayoutPanel();
+            this.mainSplit = new SplitContainer();
 
             this.pickerModePill = new Panel();
             this.btnPillModeUsers = new Button();
@@ -56,7 +56,7 @@ namespace UserTeamRoleInspector
             this.lblUsers = new Label();
             this.txtUserFilter = new TextBox();
             this.chkHideDisabled = new CheckBox();
-            this.lbUsers = new ListBox();
+            this.lbUsers = new ListView();
 
             this.detailCard = new FlowLayoutPanel();
             this.lblName = new Label();
@@ -82,6 +82,7 @@ namespace UserTeamRoleInspector
             ((System.ComponentModel.ISupportInitialize)(this.dgvDirect)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvTeam)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.gridsSplit)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.mainSplit)).BeginInit();
             this.SuspendLayout();
 
             // ---- ToolStrip ----
@@ -94,13 +95,13 @@ namespace UserTeamRoleInspector
             this.toolStrip.Location = new System.Drawing.Point(0, 0);
             this.toolStrip.GripStyle = ToolStripGripStyle.Hidden;
 
-            // ---- Main 2-column layout: master list | detail + results ----
-            this.mainTable.Dock = DockStyle.Fill;
-            this.mainTable.ColumnCount = 2;
-            this.mainTable.RowCount = 1;
-            this.mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320f));
-            this.mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            this.mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            // ---- Main 2-pane layout: master list | detail + results, resizable by dragging the splitter ----
+            this.mainSplit.Dock = DockStyle.Fill;
+            this.mainSplit.Orientation = Orientation.Vertical;
+            this.mainSplit.SplitterWidth = 6;
+            this.mainSplit.FixedPanel = FixedPanel.None;
+            this.mainSplit.Panel1MinSize = 220;
+            this.mainSplit.Panel2MinSize = 320;
 
             // Left: master list
             // ---- Users|Teams segmented toggle, above the master list ----
@@ -143,9 +144,14 @@ namespace UserTeamRoleInspector
             this.chkHideDisabled.CheckedChanged += new System.EventHandler(this.chkHideDisabled_CheckedChanged);
 
             this.lbUsers.Dock = DockStyle.Fill;
-            this.lbUsers.IntegralHeight = false;
+            this.lbUsers.View = View.Details;
+            this.lbUsers.FullRowSelect = true;
+            this.lbUsers.GridLines = true;
+            this.lbUsers.HideSelection = false;
+            this.lbUsers.MultiSelect = false;
+            this.lbUsers.HeaderStyle = ColumnHeaderStyle.Nonclickable;
             this.lbUsers.Font = new Font("Segoe UI", 10f);
-            this.lbUsers.ItemHeight = 22;
+            ConfigureListView(this.lbUsers, "Full Name", "Roles Assigned");
             this.lbUsers.SelectedIndexChanged += new System.EventHandler(this.lbUsers_SelectedIndexChanged);
 
             var listPanel = new Panel { Dock = DockStyle.Fill };
@@ -155,7 +161,7 @@ namespace UserTeamRoleInspector
             listPanel.Controls.Add(this.txtUserFilter);
             listPanel.Controls.Add(this.lblUsers);
             listPanel.Controls.Add(modeHost);
-            this.mainTable.Controls.Add(listPanel, 0, 0);
+            this.mainSplit.Panel1.Controls.Add(listPanel);
 
             SetPillActive(this.btnPillModeUsers, this.btnPillModeTeams);
 
@@ -254,7 +260,7 @@ namespace UserTeamRoleInspector
             detailPanel.Controls.Add(this.tvAssignments);
             detailPanel.Controls.Add(this.gridsSplit);
             detailPanel.Controls.Add(this.detailCard);
-            this.mainTable.Controls.Add(detailPanel, 1, 0);
+            this.mainSplit.Panel2.Controls.Add(detailPanel);
 
             // Default view on load is Tree, not Grid (decided when resolving #6).
             this.gridsSplit.Visible = false;
@@ -268,15 +274,22 @@ namespace UserTeamRoleInspector
             this.statusStrip.Items.Add(this.lblStatus);
 
             // ---- Control ----
-            this.Controls.Add(this.mainTable);
+            this.Controls.Add(this.mainSplit);
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.toolStrip);
             this.Name = "UserTeamRoleInspectorControl";
             this.Size = new System.Drawing.Size(820, 560);
 
+            // SplitterDistance must be set once the SplitContainer has a real size, otherwise it
+            // throws against the default 200x100 design-time size (Dock=Fill hasn't been applied yet
+            // while layout is suspended).
+            this.mainSplit.Size = this.Size;
+            this.mainSplit.SplitterDistance = 320;
+
             ((System.ComponentModel.ISupportInitialize)(this.dgvDirect)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvTeam)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.gridsSplit)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.mainSplit)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -293,6 +306,18 @@ namespace UserTeamRoleInspector
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             foreach (var c in columns)
                 grid.Columns.Add(c, c);
+        }
+
+        // Fixed-width columns are re-added and sized by ConfigureListView; the last column stretches
+        // to fill the remaining width so it survives the split container being dragged wider.
+        internal static void ConfigureListView(ListView listView, params string[] columns)
+        {
+            listView.Columns.Clear();
+            for (var i = 0; i < columns.Length; i++)
+            {
+                var isLast = i == columns.Length - 1;
+                listView.Columns.Add(columns[i], isLast ? -2 : 140);
+            }
         }
 
         private static readonly Color PillActiveColor = Color.FromArgb(0, 110, 190);
