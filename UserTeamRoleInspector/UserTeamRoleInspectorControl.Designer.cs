@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace UserTeamRoleInspector
@@ -133,8 +134,10 @@ namespace UserTeamRoleInspector
             this.lblUsers.Height = 20;
             this.lblUsers.Padding = new Padding(2, 3, 0, 0);
 
-            this.txtUserFilter.Dock = DockStyle.Top;
+            this.txtUserFilter.Dock = DockStyle.Fill;
+            this.txtUserFilter.BorderStyle = BorderStyle.None;
             this.txtUserFilter.TextChanged += new System.EventHandler(this.txtUserFilter_TextChanged);
+            var userFilterBox = CreateSearchBox(this.txtUserFilter);
 
             this.chkHideDisabled.Text = "Hide disabled users";
             this.chkHideDisabled.Dock = DockStyle.Top;
@@ -158,7 +161,7 @@ namespace UserTeamRoleInspector
             // NOTE: add order = docked controls draw top-most last, so add Fill first, then the Top items.
             listPanel.Controls.Add(this.lbUsers);
             listPanel.Controls.Add(this.chkHideDisabled);
-            listPanel.Controls.Add(this.txtUserFilter);
+            listPanel.Controls.Add(userFilterBox);
             listPanel.Controls.Add(this.lblUsers);
             listPanel.Controls.Add(modeHost);
             this.mainSplit.Panel1.Controls.Add(listPanel);
@@ -339,6 +342,82 @@ namespace UserTeamRoleInspector
             Font = new Font("Segoe UI", 9f),
             Margin = new Padding(0, 0, 12, 0)
         };
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
+
+        private const int EM_SETCUEBANNER = 0x1501;
+
+        // Native "cue banner" placeholder text - shown only while the box is empty and unfocused,
+        // and never interferes with the actual Text value used by the filter logic. Deferred to
+        // HandleCreated (rather than sent immediately) so it doesn't force premature Win32 handle
+        // creation on a still-unparented control, and so it's reapplied if the handle is ever
+        // recreated (e.g. by host theming).
+        private static void SetCueBanner(TextBox textBox, string text) =>
+            textBox.HandleCreated += (s, e) => SendMessage(textBox.Handle, EM_SETCUEBANNER, IntPtr.Zero, text);
+
+        // Wraps a filter TextBox with a magnifying-glass icon and a bordered frame so it reads as
+        // a search box rather than a plain, purpose-unclear textbox. The caller must already have
+        // set the TextBox's Dock to Fill and BorderStyle to None. Matches the sibling Assigner
+        // repo's search box styling exactly.
+        private static Panel CreateSearchBox(TextBox textBox)
+        {
+            var icon = new PictureBox
+            {
+                Image = CreateSearchIcon(),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Dock = DockStyle.Left,
+                Cursor = Cursors.IBeam,
+                BackColor = SystemColors.Window,
+            };
+            // Clicking the icon should focus the box, same as clicking the box itself.
+            icon.Click += (s, e) => textBox.Focus();
+
+            var container = new Panel
+            {
+                Dock = DockStyle.Top,
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = SystemColors.Window,
+            };
+            // Add order = docked controls draw top-most last, so add Fill first, then Left.
+            container.Controls.Add(textBox);
+            container.Controls.Add(icon);
+
+            // TextBox.Font is ambient (falls back to Control.DefaultFont until the control is
+            // actually parented into a tree with a real Font, e.g. once the XTB host themes the
+            // plugin), so size off FontChanged rather than computing PreferredHeight once here -
+            // that would freeze in the wrong height if the host's font differs from the default.
+            void SyncToFont(object s, EventArgs e)
+            {
+                container.Height = textBox.PreferredHeight + 2;
+                icon.Width = container.Height;
+            }
+            textBox.FontChanged += SyncToFont;
+            SyncToFont(null, EventArgs.Empty);
+
+            SetCueBanner(textBox, "Search...");
+
+            return container;
+        }
+
+        // Monochrome magnifying glass for the search-box icon; deliberately uncolored so it reads
+        // as an inline glyph inside a white textbox rather than a toolbar badge.
+        internal static Image CreateSearchIcon()
+        {
+            var bmp = new Bitmap(14, 14);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+
+                using (var pen = new Pen(Color.FromArgb(120, 120, 120), 1.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                {
+                    g.DrawEllipse(pen, 1f, 1f, 7.5f, 7.5f);
+                    g.DrawLine(pen, 8.0f, 8.0f, 12.5f, 12.5f);
+                }
+            }
+            return bmp;
+        }
 
         // Toolbar-sized (16x16) circular arrow, matching the sibling Assigner plugin's style.
         internal static Image CreateRefreshIcon()
