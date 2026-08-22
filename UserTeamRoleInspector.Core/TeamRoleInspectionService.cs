@@ -284,7 +284,10 @@ namespace UserTeamRoleInspector.Core
             }
             while (ec.MoreRecords);
 
-            return list;
+            return list
+                .OrderBy(r => r.RoleName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.RoleBusinessUnitName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private List<TeamMemberItem> GetTeamMembers(Guid teamId)
@@ -377,7 +380,10 @@ namespace UserTeamRoleInspector.Core
             }
             while (ec.MoreRecords);
 
-            return list;
+            return list
+                .OrderBy(a => a.RoleName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(a => a.RoleBusinessUnitName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         /// <summary>

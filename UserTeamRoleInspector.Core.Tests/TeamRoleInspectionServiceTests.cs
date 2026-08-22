@@ -132,6 +132,34 @@ namespace UserTeamRoleInspector.Core.Tests
         }
 
         [Fact]
+        public void GetAssignments_MultipleDirectRoles_AreOrderedByRoleThenRoleBu()
+        {
+            var fake = new FakeOrganizationService();
+            var user = fake.SeedUser(Guid.NewGuid(), "Liam", RootBuId, "Root BU");
+
+            var roleB = fake.SeedRole(Guid.NewGuid(), "Bravo Role", RootBuId, "Root BU");
+            var roleA = fake.SeedRole(Guid.NewGuid(), "Alpha Role", RootBuId, "Root BU");
+            var buZ = Guid.NewGuid();
+            var roleAInOtherBu = fake.SeedRole(Guid.NewGuid(), "Alpha Role", buZ, "Zulu BU");
+
+            fake.SeedUserRole(user.Id, roleB.Id);
+            fake.SeedUserRole(user.Id, roleA.Id);
+            fake.SeedUserRole(user.Id, roleAInOtherBu.Id);
+
+            var sut = new TeamRoleInspectionService(fake);
+
+            var result = sut.GetAssignments(user.Id);
+
+            var ordered = result.Assignments.Select(a => (a.RoleName, a.RoleBusinessUnitName)).ToList();
+            Assert.Equal(new[]
+            {
+                ("Alpha Role", "Root BU"),
+                ("Alpha Role", "Zulu BU"),
+                ("Bravo Role", "Root BU")
+            }, ordered);
+        }
+
+        [Fact]
         public void GetAssignments_UserInAccessTeamWithNoRoles_ContributesNoAssignments()
         {
             // Access teams can't hold security roles (see the Assigner's docs); membership in one
@@ -221,6 +249,34 @@ namespace UserTeamRoleInspector.Core.Tests
             Assert.Equal(2, result.Members.Count);
             Assert.Contains(result.Members, m => m.UserId == member.Id && !m.IsDisabled);
             Assert.Contains(result.Members, m => m.UserId == disabledMember.Id && m.IsDisabled);
+        }
+
+        [Fact]
+        public void GetTeamDetail_MultipleRoles_AreOrderedByRoleThenRoleBu()
+        {
+            var fake = new FakeOrganizationService();
+            var team = fake.SeedTeam(Guid.NewGuid(), "Sales Team", RootBuId, "Root BU");
+
+            var roleB = fake.SeedRole(Guid.NewGuid(), "Bravo Role", RootBuId, "Root BU");
+            var roleA = fake.SeedRole(Guid.NewGuid(), "Alpha Role", RootBuId, "Root BU");
+            var buZ = Guid.NewGuid();
+            var roleAInOtherBu = fake.SeedRole(Guid.NewGuid(), "Alpha Role", buZ, "Zulu BU");
+
+            fake.SeedTeamRole(team.Id, roleB.Id);
+            fake.SeedTeamRole(team.Id, roleA.Id);
+            fake.SeedTeamRole(team.Id, roleAInOtherBu.Id);
+
+            var sut = new TeamRoleInspectionService(fake);
+
+            var result = sut.GetTeamDetail(team.Id);
+
+            var ordered = result.Roles.Select(r => (r.RoleName, r.RoleBusinessUnitName)).ToList();
+            Assert.Equal(new[]
+            {
+                ("Alpha Role", "Root BU"),
+                ("Alpha Role", "Zulu BU"),
+                ("Bravo Role", "Root BU")
+            }, ordered);
         }
 
         [Fact]
