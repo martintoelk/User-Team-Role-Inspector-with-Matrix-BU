@@ -11,14 +11,10 @@
     <projectUrl>https://github.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU</projectUrl>
     <!-- <icon> for modern NuGet clients (nuget.org computes its own hosted URL from this once
          indexed). Forward slash here, not backslash: a .nupkg is a zip, zip entries always use
-         "/". A prior sibling-repo attempt at also setting <iconUrl> was blamed for a portal
-         rejection, but that repo's nuspec still had a backslash in <icon> at the time - the two
-         were confounded. A real, currently-listed XrmToolBox tool (Xrm.Sdk.PluginRegistration)
-         sets BOTH <icon> and <iconUrl> together, so this repo does the same: <iconUrl> as an
-         explicit fallback for any validator (like the XrmToolBox portal may be) that reads the
-         legacy field directly instead of nuget.org's computed one. -->
+         "/". Deliberately no <iconUrl>: nuget.org rejects a custom one that doesn't match what it
+         computes itself from <icon>, so don't set it even though a real, currently-listed
+         XrmToolBox tool (Xrm.Sdk.PluginRegistration) does. -->
     <icon>images/icon.png</icon>
-    <iconUrl>https://raw.githubusercontent.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU/master/nuget/icon.png</iconUrl>
     <readme>README.md</readme>
     <!-- Tags must start with the literal word "XrmToolBox" - that's how the store's crawler finds it. -->
     <tags>XrmToolBox Plugins UserTeamRoleInspector SecurityRoles Teams BusinessUnits</tags>
