@@ -29,8 +29,6 @@ namespace UserTeamRoleInspector
         public UserTeamRoleInspectorControl()
         {
             InitializeComponent();
-            dgvDirect.ColumnHeaderMouseClick += Grid_ColumnHeaderMouseClick;
-            dgvTeam.ColumnHeaderMouseClick += Grid_ColumnHeaderMouseClick;
         }
 
         // ------------------------------------------------------------------ UI events

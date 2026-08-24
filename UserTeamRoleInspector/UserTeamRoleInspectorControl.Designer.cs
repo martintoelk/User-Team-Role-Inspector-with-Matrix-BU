@@ -307,6 +307,8 @@ namespace UserTeamRoleInspector
             grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             grid.MultiSelect = false;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            grid.ColumnHeaderMouseClick -= Grid_ColumnHeaderMouseClick;
+            grid.ColumnHeaderMouseClick += Grid_ColumnHeaderMouseClick;
             foreach (var c in columns)
             {
                 var column = grid.Columns[grid.Columns.Add(c, c)];
