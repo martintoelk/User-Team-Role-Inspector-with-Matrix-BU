@@ -11,7 +11,7 @@ namespace UserTeamRoleInspector
         private ToolStrip toolStrip;
         private ToolStripButton tsbLoad;
 
-        private SplitContainer mainSplit;
+        private TableLayoutPanel mainLayout;
 
         private Panel pickerModePill;
         private Button btnPillModeUsers;
@@ -49,7 +49,7 @@ namespace UserTeamRoleInspector
             this.toolStrip = new ToolStrip();
             this.tsbLoad = new ToolStripButton();
 
-            this.mainSplit = new SplitContainer();
+            this.mainLayout = new TableLayoutPanel();
 
             this.pickerModePill = new Panel();
             this.btnPillModeUsers = new Button();
@@ -85,7 +85,6 @@ namespace UserTeamRoleInspector
             ((System.ComponentModel.ISupportInitialize)(this.dgvDirect)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvTeam)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.gridsSplit)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.mainSplit)).BeginInit();
             this.SuspendLayout();
 
             // ---- ToolStrip ----
@@ -98,13 +97,15 @@ namespace UserTeamRoleInspector
             this.toolStrip.Location = new System.Drawing.Point(0, 0);
             this.toolStrip.GripStyle = ToolStripGripStyle.Hidden;
 
-            // ---- Main 2-pane layout: master list | detail + results, resizable by dragging the splitter ----
-            this.mainSplit.Dock = DockStyle.Fill;
-            this.mainSplit.Orientation = Orientation.Vertical;
-            this.mainSplit.SplitterWidth = 6;
-            this.mainSplit.FixedPanel = FixedPanel.None;
-            this.mainSplit.Panel1MinSize = 220;
-            this.mainSplit.Panel2MinSize = 320;
+            // ---- Main 2-pane layout: master list | detail + results ----
+            // Percent-sized columns keep both panes responsive as the XrmToolBox host is resized.
+            this.mainLayout.Dock = DockStyle.Fill;
+            this.mainLayout.ColumnCount = 2;
+            this.mainLayout.RowCount = 1;
+            this.mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+            this.mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
+            this.mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            this.mainLayout.GrowStyle = TableLayoutPanelGrowStyle.FixedSize;
 
             // Left: master list
             // ---- Users|Teams segmented toggle, above the master list ----
@@ -175,7 +176,7 @@ namespace UserTeamRoleInspector
             listPanel.Controls.Add(userFilterBox);
             listPanel.Controls.Add(this.lblUsers);
             listPanel.Controls.Add(modeHost);
-            this.mainSplit.Panel1.Controls.Add(listPanel);
+            this.mainLayout.Controls.Add(listPanel, 0, 0);
 
             SetPillActive(this.btnPillModeUsers, this.btnPillModeTeams);
 
@@ -274,7 +275,7 @@ namespace UserTeamRoleInspector
             detailPanel.Controls.Add(this.tvAssignments);
             detailPanel.Controls.Add(this.gridsSplit);
             detailPanel.Controls.Add(this.detailCard);
-            this.mainSplit.Panel2.Controls.Add(detailPanel);
+            this.mainLayout.Controls.Add(detailPanel, 1, 0);
 
             // Default view on load is Tree, not Grid (decided when resolving #6).
             this.gridsSplit.Visible = false;
@@ -288,22 +289,15 @@ namespace UserTeamRoleInspector
             this.statusStrip.Items.Add(this.lblStatus);
 
             // ---- Control ----
-            this.Controls.Add(this.mainSplit);
+            this.Controls.Add(this.mainLayout);
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.toolStrip);
             this.Name = "UserTeamRoleInspectorControl";
             this.Size = new System.Drawing.Size(820, 560);
 
-            // SplitterDistance must be set once the SplitContainer has a real size, otherwise it
-            // throws against the default 200x100 design-time size (Dock=Fill hasn't been applied yet
-            // while layout is suspended).
-            this.mainSplit.Size = this.Size;
-            this.mainSplit.SplitterDistance = 320;
-
             ((System.ComponentModel.ISupportInitialize)(this.dgvDirect)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvTeam)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.gridsSplit)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.mainSplit)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
         }
