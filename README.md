@@ -91,6 +91,18 @@ copying them can cause version conflicts. Restart XrmToolBox; the plugin appears
 7. In Team mode, read the detail card: name, Business Unit, and the Roles / Members stat
    tiles, with the team's roles and member users shown as two grids.
 
+### Opened from the Role Assigner
+
+This tool can also be opened *for you*, already pointed at a record. In the companion tool
+[BU Matrix Security Role Assigner](https://github.com/martintoelk/Modernized-BU-Security-Role-Assigner),
+selecting a team or user and clicking **Inspect in Role Inspector** hands it to this tool over
+XrmToolBox's message bus: this tool opens (or comes to the front) on the same connection,
+switches to Users or Teams to match, loads that list if it hasn't been loaded yet, and selects
+the record.
+
+Because a leftover filter — or **Hide disabled users**, which is on by default — could be hiding
+the very row you asked for, both are cleared when a handoff arrives.
+
 ## Terminology
 
 See `CONTEXT.md` for the full glossary; the short version:
@@ -112,6 +124,7 @@ See `CONTEXT.md` for the full glossary; the short version:
 |------|---------|
 | `UserTeamRoleInspector.Core/TeamRoleInspectionService.cs` | Query/aggregation logic (direct + team-derived roles for User mode, team roles + members for Team mode), depends only on `IOrganizationService` |
 | `UserTeamRoleInspector.Core/Models.cs` | `UserItem`, `Assignment`, `UserRoleInspectionResult`, `AssignmentSource`, `TeamItem`, `TeamRoleItem`, `TeamMemberItem`, `TeamDetailResult` |
+| `UserTeamRoleInspector.Core/RoleHandoff.cs` | Reader for the payload the Role Assigner hands over the message bus |
 | `UserTeamRoleInspector.Core/UserTeamRoleInspector.Core.csproj` | Class library (net48), no WinForms/XTB dependency |
 | `UserTeamRoleInspector/Plugin.cs` | XrmToolBox export/metadata (the plugin factory) |
 | `UserTeamRoleInspector/UserTeamRoleInspectorControl.cs` | UI wiring, threading (`WorkAsync`), User/Team mode switch, calls into Core |

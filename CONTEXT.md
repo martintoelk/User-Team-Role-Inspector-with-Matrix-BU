@@ -53,6 +53,16 @@ A security role associated straight to a team via `teamroles` - the same fact a 
 Assignment reports from the user's side, shown here from the team's side instead. Carries the
 role's own Business Unit, same as a Direct Assignment.
 
+**Handoff**:
+A message another XrmToolBox tool sends to open this one on a specific team or user — today
+only "BU Matrix Security Role Assigner" sends one, from its **Inspect in Role Inspector**
+button. It arrives through XrmToolBox's `IMessageBusHost` broker as a string payload
+(`RoleHandoff`), not an object: the two tools are separately built assemblies that cannot name
+each other's types. The host cold-launches this tool if it isn't open, and delivers the message
+*immediately* after showing it — possibly before there is a connection or any loaded data — so a
+handoff is stashed and applied when it can be (`ApplyHandoff`).
+_Avoid_: Deep link, integration message.
+
 **Team Member** (Team mode):
 A user who belongs to a team via `teammembership`. Team mode's picker/detail carries no
 Assignment or Source concept - it reports the team's own roles and its member users, not

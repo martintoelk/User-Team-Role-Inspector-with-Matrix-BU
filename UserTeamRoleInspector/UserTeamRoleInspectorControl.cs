@@ -6,10 +6,14 @@ using System.Linq;
 using System.Windows.Forms;
 using UserTeamRoleInspector.Core;
 using XrmToolBox.Extensibility;
+using XrmToolBox.Extensibility.Interfaces;
 
 namespace UserTeamRoleInspector
 {
-    public partial class UserTeamRoleInspectorControl : PluginControlBase
+    // IMessageBusHost is XrmToolBox's host-mediated channel between tools; implementing it is what
+    // lets "BU Matrix Security Role Assigner" hand us the team/user it has selected. See
+    // OnIncomingMessage for the receiving path.
+    public partial class UserTeamRoleInspectorControl : PluginControlBase, IMessageBusHost
     {
         // Which dataset the master list currently shows. The list, filter box, detail card and
         // results grids are all shared controls whose content/labels swap per mode - there is no
@@ -124,9 +128,130 @@ namespace UserTeamRoleInspector
             PopulateList();
         }
 
+        // ------------------------------------------------------------------ Message-bus handoff
+
+        // Set by OnIncomingMessage, consumed by ApplyHandoff. It has to survive the trip because
+        // the handoff can arrive before this control can act on it: the host delivers the message
+        // right after showing the tool, which on a cold launch is before there is a connection to
+        // query with, and possibly before anything is loaded to select from.
+        private RoleHandoff _pendingHandoff;
+
+        /// <summary>
+        /// Required by <see cref="IMessageBusHost"/>. This tool only ever receives - it has no
+        /// action that opens another tool - so nothing raises it.
+        /// </summary>
+#pragma warning disable 67 // "never used" is the point: the interface requires it, we only receive.
+        public event EventHandler<MessageBusEventArgs> OnOutgoingMessage;
+#pragma warning restore 67
+
+        /// <summary>
+        /// Called by XrmToolBox when another tool targets this one. Today that is "BU Matrix
+        /// Security Role Assigner" saying "show me the roles on this team/user"; anything else is
+        /// ignored, since a tool that cannot act on a message should say nothing rather than fail
+        /// in front of the user.
+        /// </summary>
+        public void OnIncomingMessage(MessageBusEventArgs message)
+        {
+            // TargetArgument is dynamic: cast to object first, or the call becomes a dynamic one
+            // and the `out` argument won't compile.
+            if (!RoleHandoff.TryParse((object)message?.TargetArgument, out var handoff)) return;
+
+            _pendingHandoff = handoff;
+
+            // The host calls this from its own message-broker path, so hop onto this control's
+            // message loop before touching any of its state.
+            if (IsHandleCreated)
+                BeginInvoke(new MethodInvoker(() => ApplyHandoff(afterLoad: false)));
+            else
+                HandleCreated += HandoffOnHandleCreated;
+        }
+
+        private void HandoffOnHandleCreated(object sender, EventArgs e)
+        {
+            HandleCreated -= HandoffOnHandleCreated;
+            BeginInvoke(new MethodInvoker(() => ApplyHandoff(afterLoad: false)));
+        }
+
+        /// <summary>
+        /// Opens whatever the pending handoff points at. Runs up to twice: once as the message
+        /// arrives, and - if the relevant list hasn't been loaded yet - once more after loading
+        /// it. <paramref name="afterLoad"/> is what stops that from looping on an environment
+        /// that legitimately has nothing to list.
+        /// </summary>
+        private void ApplyHandoff(bool afterLoad)
+        {
+            var handoff = _pendingHandoff;
+            if (handoff == null) return;
+
+            PickerMode mode;
+            switch (handoff.Entity)
+            {
+                case "systemuser": mode = PickerMode.Users; break;
+                case "team": mode = PickerMode.Teams; break;
+                default: _pendingHandoff = null; return;   // a record kind this build can't show
+            }
+
+            // ExecuteMethod opens the host's connection dialog when there is no service yet,
+            // then calls back - the same path every other action here uses.
+            if (Service == null)
+            {
+                ExecuteMethod(() => ApplyHandoff(afterLoad));
+                return;
+            }
+
+            SwitchMode(mode);   // no-op when already in that mode
+
+            var loadedCount = mode == PickerMode.Users ? _allUsers.Count : _allTeams.Count;
+            if (loadedCount == 0 && !afterLoad)
+            {
+                if (mode == PickerMode.Users) LoadUsers(() => ApplyHandoff(afterLoad: true));
+                else LoadTeams(() => ApplyHandoff(afterLoad: true));
+                return;
+            }
+
+            _pendingHandoff = null;
+
+            // Dropping the selection first means the repopulation below doesn't restore the old
+            // one - which would cost a round trip loading a record we're about to replace.
+            lbUsers.SelectedIndices.Clear();
+
+            // A leftover filter - or "Hide disabled users", which is on by default - can easily be
+            // hiding the very row we were asked to open, and a handoff that lands on an empty list
+            // looks like the tool did nothing. Each setter repopulates the list, but only if it
+            // actually changes the value, so repopulate by hand when neither of them did.
+            var wasFiltered = txtUserFilter.Text.Length > 0;
+            var wasHidingDisabled = mode == PickerMode.Users && chkHideDisabled.Checked;
+            txtUserFilter.Text = "";
+            if (mode == PickerMode.Users) chkHideDisabled.Checked = false;
+            if (!wasFiltered && !wasHidingDisabled) PopulateList();
+
+            var index = mode == PickerMode.Users
+                ? _filteredUsers.FindIndex(u => u.Id == handoff.Id)
+                : _filteredTeams.FindIndex(t => t.Id == handoff.Id);
+
+            if (index < 0)
+            {
+                var noun = mode == PickerMode.Users ? "user" : "team";
+                MessageBox.Show(this,
+                    $"The {noun} '{handoff.Name}' was not found in this environment.\r\n\r\n" +
+                    $"It may have been deleted, or the sending tool may be connected to a different environment.",
+                    "Not found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Selecting it is what loads the detail - lbUsers_SelectedIndexChanged does the rest.
+            SelectListViewIndex(index);
+        }
+
         // ------------------------------------------------------------------ Load
 
-        private void LoadUsers()
+        private void LoadUsers() => LoadUsers(null);
+
+        // onLoaded runs only after a successful load, and only on the UI thread. It exists for
+        // the message-bus handoff, which can land on a tool the host has just cold-launched with
+        // nothing loaded yet - see ApplyHandoff. Kept as an overload rather than an optional
+        // parameter so tsbLoad_Click can still convert these method groups to an Action.
+        private void LoadUsers(Action onLoaded)
         {
             WorkAsync(new WorkAsyncInfo
             {
@@ -147,11 +272,14 @@ namespace UserTeamRoleInspector
 
                     _allUsers = (List<UserItem>)args.Result;
                     PopulateList();
+                    onLoaded?.Invoke();
                 }
             });
         }
 
-        private void LoadTeams()
+        private void LoadTeams() => LoadTeams(null);
+
+        private void LoadTeams(Action onLoaded)
         {
             WorkAsync(new WorkAsyncInfo
             {
@@ -172,6 +300,7 @@ namespace UserTeamRoleInspector
 
                     _allTeams = (List<TeamItem>)args.Result;
                     PopulateList();
+                    onLoaded?.Invoke();
                 }
             });
         }
