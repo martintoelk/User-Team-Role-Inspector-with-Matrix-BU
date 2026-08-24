@@ -308,7 +308,12 @@ namespace UserTeamRoleInspector
             grid.MultiSelect = false;
             grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             foreach (var c in columns)
-                grid.Columns.Add(c, c);
+            {
+                var column = grid.Columns[grid.Columns.Add(c, c)];
+                // Results are added as unbound text rows. The control handles header clicks and
+                // issues the sort command explicitly for these programmatic columns.
+                column.SortMode = DataGridViewColumnSortMode.Programmatic;
+            }
         }
 
         // Fixed-width columns are re-added and sized by ConfigureListView; the last column stretches

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -28,6 +29,8 @@ namespace UserTeamRoleInspector
         public UserTeamRoleInspectorControl()
         {
             InitializeComponent();
+            dgvDirect.ColumnHeaderMouseClick += Grid_ColumnHeaderMouseClick;
+            dgvTeam.ColumnHeaderMouseClick += Grid_ColumnHeaderMouseClick;
         }
 
         // ------------------------------------------------------------------ UI events
@@ -362,6 +365,25 @@ namespace UserTeamRoleInspector
                 dgvTeam.Rows.Add(m.IsDisabled ? $"{m.Name}  (disabled)" : m.Name);
 
             UpdateStatus();
+        }
+
+        private static void Grid_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            var grid = (DataGridView)sender;
+            var newColumn = grid.Columns[e.ColumnIndex];
+            var oldColumn = grid.SortedColumn;
+
+            var direction = oldColumn == newColumn && grid.SortOrder == SortOrder.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+
+            if (oldColumn != null && oldColumn != newColumn)
+                oldColumn.HeaderCell.SortGlyphDirection = SortOrder.None;
+
+            grid.Sort(newColumn, direction);
+            newColumn.HeaderCell.SortGlyphDirection = direction == ListSortDirection.Ascending
+                ? SortOrder.Ascending
+                : SortOrder.Descending;
         }
 
         // 3-level tree: Direct Roles / one node per source team -> Role node -> Role Business Unit leaf.
