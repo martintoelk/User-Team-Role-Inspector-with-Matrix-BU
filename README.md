@@ -24,8 +24,8 @@ plugin.
 
 - **Load / Refresh Users** loads the user list; a text filter above it narrows by name or
   Business Unit, and a **Hide disabled users** checkbox (checked by default) excludes disabled
-  users from the list. Both persist across reloads. Each row shows
-  `Name  (Team: N, Direct: M)` assignment counts.
+  users from the list. Both persist across reloads. Each row shows separate
+  `Direct Assignments` and `Team-Derived Assignments` count columns.
 - Selecting a user loads their detail card: name, **Business Unit**, a **DISABLED** badge for
   disabled users, and Direct / Team-Derived stat tiles.
 - **Grid | Tree** toggle switches how the results are shown — switching never re-queries

@@ -165,7 +165,7 @@ namespace UserTeamRoleInspector
             this.lbUsers.MultiSelect = false;
             this.lbUsers.HeaderStyle = ColumnHeaderStyle.Nonclickable;
             this.lbUsers.Font = new Font("Segoe UI", 10f);
-            ConfigureListView(this.lbUsers, "Full Name", "Roles Assigned");
+            ConfigureListView(this.lbUsers, "Full Name", "Direct Assignments", "Team-Derived Assignments");
             this.lbUsers.SelectedIndexChanged += new System.EventHandler(this.lbUsers_SelectedIndexChanged);
 
             var listPanel = new Panel { Dock = DockStyle.Fill };

@@ -122,7 +122,7 @@ namespace UserTeamRoleInspector
             lblTeamHeader.Text = isUsers ? "Team-Derived Assignments" : "Team Members";
 
             ConfigureListView(lbUsers, isUsers
-                ? new[] { "Full Name", "Roles Assigned" }
+                ? new[] { "Full Name", "Direct Assignments", "Team-Derived Assignments" }
                 : new[] { "Team Name", "Roles", "Members" });
 
             dgvTeam.Columns.Clear();
@@ -435,8 +435,12 @@ namespace UserTeamRoleInspector
         private static ListViewItem UserRow(UserItem u)
         {
             var name = u.IsDisabled ? $"{u.Name}  (disabled)" : u.Name;
-            var totalRoles = u.DirectCount + u.TeamCount;
-            return new ListViewItem(new[] { name, totalRoles.ToString() });
+            return new ListViewItem(new[]
+            {
+                name,
+                u.DirectCount.ToString(),
+                u.TeamCount.ToString()
+            });
         }
 
         private static ListViewItem TeamRow(TeamItem t) =>
