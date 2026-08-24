@@ -44,6 +44,12 @@ namespace UserTeamRoleInspector
 
         private void chkHideDisabled_CheckedChanged(object sender, EventArgs e) => PopulateList();
 
+        private void chkIgnoreAgentTeams_CheckedChanged(object sender, EventArgs e)
+        {
+            if (_mode != PickerMode.Teams) return;
+            ExecuteMethod(() => LoadTeams());
+        }
+
         private void lbUsers_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (_mode == PickerMode.Users)
@@ -94,6 +100,7 @@ namespace UserTeamRoleInspector
 
             lblUsers.Text = isUsers ? "Users" : "Teams";
             chkHideDisabled.Visible = isUsers;
+            chkIgnoreAgentTeams.Visible = !isUsers;
             tsbLoad.Text = isUsers ? "Load / Refresh Users" : "Load / Refresh Teams";
 
             // Team mode has no nested source grouping to show, so there's nothing for the tree to
@@ -281,13 +288,15 @@ namespace UserTeamRoleInspector
 
         private void LoadTeams(Action onLoaded)
         {
+            var ignoreAgentTeams = chkIgnoreAgentTeams.Checked;
+
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Loading teams...",
                 Work = (worker, args) =>
                 {
                     var service = new TeamRoleInspectionService(Service);
-                    args.Result = service.RetrieveTeams();
+                    args.Result = service.RetrieveTeams(ignoreAgentTeams);
                 },
                 PostWorkCallBack = args =>
                 {

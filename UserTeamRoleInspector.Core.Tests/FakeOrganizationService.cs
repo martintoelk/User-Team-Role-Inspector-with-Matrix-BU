@@ -51,6 +51,14 @@ namespace UserTeamRoleInspector.Core.Tests
             return Seed(team);
         }
 
+        public Entity SeedTeamWithDescription(Guid id, string name, Guid businessUnitId, string businessUnitName, string description)
+        {
+            var team = SeedTeam(id, name, businessUnitId, businessUnitName);
+            if (description != null)
+                team["description"] = description;
+            return team;
+        }
+
         /// <summary>Directly seeds a teammembership intersect row (user belongs to team).</summary>
         public void SeedTeamMembership(Guid userId, Guid teamId)
         {
@@ -118,10 +126,7 @@ namespace UserTeamRoleInspector.Core.Tests
                 : Enumerable.Empty<Entity>();
 
             if (query.Criteria != null)
-            {
-                foreach (var condition in query.Criteria.Conditions)
-                    rows = rows.Where(e => MatchesCondition(e, condition));
-            }
+                rows = rows.Where(e => MatchesFilter(e, query.Criteria));
 
             foreach (var link in query.LinkEntities)
                 rows = ApplyLink(rows, link);
@@ -228,14 +233,46 @@ namespace UserTeamRoleInspector.Core.Tests
 
         private static bool MatchesCondition(Entity entity, ConditionExpression condition)
         {
-            if (condition.Operator != ConditionOperator.Equal || condition.Values.Count != 1)
+            var actual = entity.GetAttributeValue<object>(condition.AttributeName);
+
+            if (condition.Operator == ConditionOperator.Null)
+                return actual == null;
+
+            if (condition.Operator == ConditionOperator.NotNull)
+                return actual != null;
+
+            if (condition.Values.Count != 1)
                 return true; // unsupported operators are permissive - out of scope for this fake
 
             if (condition.Values[0] is Guid expectedGuid)
                 return GetGuidValue(entity, condition.AttributeName) == expectedGuid;
 
-            var actual = entity.GetAttributeValue<object>(condition.AttributeName);
+            if (condition.Operator == ConditionOperator.NotLike)
+            {
+                if (!(actual is string actualText)) return false;
+                var pattern = Convert.ToString(condition.Values[0]) ?? string.Empty;
+                var expectedText = pattern.Trim('%');
+                return actualText.IndexOf(expectedText, StringComparison.OrdinalIgnoreCase) < 0;
+            }
+
+            if (condition.Operator != ConditionOperator.Equal)
+                return true;
+
             return Equals(actual, condition.Values[0]);
+        }
+
+        private static bool MatchesFilter(Entity entity, FilterExpression filter)
+        {
+            var matchesConditions = filter.Conditions.All(condition => MatchesCondition(entity, condition));
+            var matchesFilters = filter.Filters.All(nested => MatchesFilter(entity, nested));
+
+            if (filter.FilterOperator == LogicalOperator.Or && (filter.Conditions.Count > 0 || filter.Filters.Count > 0))
+            {
+                return filter.Conditions.Any(condition => MatchesCondition(entity, condition)) ||
+                       filter.Filters.Any(nested => MatchesFilter(entity, nested));
+            }
+
+            return matchesConditions && matchesFilters;
         }
     }
 }

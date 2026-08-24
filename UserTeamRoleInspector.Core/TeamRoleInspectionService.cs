@@ -190,14 +190,23 @@ namespace UserTeamRoleInspector.Core
         }
 
         /// <summary>All teams for the picker, ordered by name, with their own Business Unit and
-        /// Roles/Members counts (mirrors <see cref="RetrieveUsers"/>'s shape).</summary>
-        public List<TeamItem> RetrieveTeams()
+        /// Roles/Members counts (mirrors <see cref="RetrieveUsers"/>'s shape). Agent teams whose
+        /// description contains "power virtual agents" are excluded by default.</summary>
+        public List<TeamItem> RetrieveTeams(bool ignoreAgentTeams = true)
         {
             var query = new QueryExpression(Team.EntityLogicalName)
             {
-                ColumnSet = new ColumnSet(Team.Fields.Name, Team.Fields.BusinessUnitId),
+                ColumnSet = new ColumnSet(Team.Fields.Name, Team.Fields.BusinessUnitId, Team.Fields.Description),
                 PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
             };
+            if (ignoreAgentTeams)
+            {
+                var visibleTeamFilter = new FilterExpression(LogicalOperator.Or);
+                visibleTeamFilter.AddCondition(Team.Fields.Description, ConditionOperator.Null);
+                visibleTeamFilter.AddCondition(
+                    Team.Fields.Description, ConditionOperator.NotLike, "%power virtual agents%");
+                query.Criteria.AddFilter(visibleTeamFilter);
+            }
             query.AddOrder(Team.Fields.Name, OrderType.Ascending);
 
             var list = new List<TeamItem>();

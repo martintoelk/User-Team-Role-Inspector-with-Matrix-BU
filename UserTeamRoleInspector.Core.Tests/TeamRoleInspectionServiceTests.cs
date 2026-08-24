@@ -303,5 +303,27 @@ namespace UserTeamRoleInspector.Core.Tests
             Assert.Equal(0, empty.RoleCount);
             Assert.Equal(0, empty.MemberCount);
         }
+
+        [Fact]
+        public void RetrieveTeams_IgnoresPowerVirtualAgentTeamsByDefault_ButCanIncludeThem()
+        {
+            var fake = new FakeOrganizationService();
+            var agentTeam = fake.SeedTeamWithDescription(
+                Guid.NewGuid(), "Agent Team", RootBuId, "Root BU", "Power Virtual Agents default team");
+            var normalTeam = fake.SeedTeamWithDescription(
+                Guid.NewGuid(), "Sales Team", RootBuId, "Root BU", "Used by sales");
+            var noDescriptionTeam = fake.SeedTeamWithDescription(
+                Guid.NewGuid(), "Operations Team", RootBuId, "Root BU", null);
+
+            var sut = new TeamRoleInspectionService(fake);
+
+            var ignoredByDefault = sut.RetrieveTeams();
+            var allTeams = sut.RetrieveTeams(ignoreAgentTeams: false);
+
+            Assert.DoesNotContain(ignoredByDefault, t => t.Id == agentTeam.Id);
+            Assert.Contains(ignoredByDefault, t => t.Id == normalTeam.Id);
+            Assert.Contains(ignoredByDefault, t => t.Id == noDescriptionTeam.Id);
+            Assert.Contains(allTeams, t => t.Id == agentTeam.Id);
+        }
     }
 }

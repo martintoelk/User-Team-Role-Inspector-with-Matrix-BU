@@ -20,6 +20,7 @@ namespace UserTeamRoleInspector
         private Label lblUsers;
         private TextBox txtUserFilter;
         private CheckBox chkHideDisabled;
+        private CheckBox chkIgnoreAgentTeams;
         private ListView lbUsers;
 
         private FlowLayoutPanel detailCard;
@@ -57,6 +58,7 @@ namespace UserTeamRoleInspector
             this.lblUsers = new Label();
             this.txtUserFilter = new TextBox();
             this.chkHideDisabled = new CheckBox();
+            this.chkIgnoreAgentTeams = new CheckBox();
             this.lbUsers = new ListView();
 
             this.detailCard = new FlowLayoutPanel();
@@ -146,6 +148,14 @@ namespace UserTeamRoleInspector
             this.chkHideDisabled.Checked = true;
             this.chkHideDisabled.CheckedChanged += new System.EventHandler(this.chkHideDisabled_CheckedChanged);
 
+            this.chkIgnoreAgentTeams.Text = "Ignore Agent Teams";
+            this.chkIgnoreAgentTeams.Dock = DockStyle.Top;
+            this.chkIgnoreAgentTeams.AutoSize = true;
+            this.chkIgnoreAgentTeams.Padding = new Padding(2, 4, 0, 4);
+            this.chkIgnoreAgentTeams.Checked = true;
+            this.chkIgnoreAgentTeams.Visible = false;
+            this.chkIgnoreAgentTeams.CheckedChanged += new System.EventHandler(this.chkIgnoreAgentTeams_CheckedChanged);
+
             this.lbUsers.Dock = DockStyle.Fill;
             this.lbUsers.View = View.Details;
             this.lbUsers.FullRowSelect = true;
@@ -161,6 +171,7 @@ namespace UserTeamRoleInspector
             // NOTE: add order = docked controls draw top-most last, so add Fill first, then the Top items.
             listPanel.Controls.Add(this.lbUsers);
             listPanel.Controls.Add(this.chkHideDisabled);
+            listPanel.Controls.Add(this.chkIgnoreAgentTeams);
             listPanel.Controls.Add(userFilterBox);
             listPanel.Controls.Add(this.lblUsers);
             listPanel.Controls.Add(modeHost);
