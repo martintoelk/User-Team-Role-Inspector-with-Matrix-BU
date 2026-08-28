@@ -325,5 +325,29 @@ namespace UserTeamRoleInspector.Core.Tests
             Assert.Contains(ignoredByDefault, t => t.Id == noDescriptionTeam.Id);
             Assert.Contains(allTeams, t => t.Id == agentTeam.Id);
         }
+
+        [Fact]
+        public void RetrieveTeams_IndependentlyFiltersAgentAndAccessTeams_AndExposesTeamType()
+        {
+            var fake = new FakeOrganizationService();
+            var ownerTeam = fake.SeedTeam(Guid.NewGuid(), "Sales Team", RootBuId, "Root BU");
+            var accessTeam = fake.SeedTeam(Guid.NewGuid(), "Sales Access Team", RootBuId, "Root BU", teamType: 1);
+            var agentOwnerTeam = fake.SeedTeamWithDescription(
+                Guid.NewGuid(), "Agent Owner Team", RootBuId, "Root BU", "Power Virtual Agents default team");
+            var agentAccessTeam = fake.SeedTeamWithDescription(
+                Guid.NewGuid(), "Agent Access Team", RootBuId, "Root BU", "Power Virtual Agents default team", teamType: 1);
+            var sut = new TeamRoleInspectionService(fake);
+
+            var neither = sut.RetrieveTeams(ignoreAgentTeams: false, ignoreAccessTeams: false);
+            var onlyAgent = sut.RetrieveTeams(ignoreAgentTeams: true, ignoreAccessTeams: false);
+            var onlyAccess = sut.RetrieveTeams(ignoreAgentTeams: false, ignoreAccessTeams: true);
+            var both = sut.RetrieveTeams(ignoreAgentTeams: true, ignoreAccessTeams: true);
+
+            Assert.Equal("Owner", Assert.Single(neither, t => t.Id == ownerTeam.Id).TeamType);
+            Assert.Equal("Access", Assert.Single(neither, t => t.Id == accessTeam.Id).TeamType);
+            Assert.DoesNotContain(onlyAgent, t => t.Id == agentOwnerTeam.Id || t.Id == agentAccessTeam.Id);
+            Assert.DoesNotContain(onlyAccess, t => t.Id == accessTeam.Id || t.Id == agentAccessTeam.Id);
+            Assert.Equal(new[] { ownerTeam.Id }, both.Select(t => t.Id));
+        }
     }
 }

@@ -50,6 +50,12 @@ namespace UserTeamRoleInspector
             ExecuteMethod(() => LoadTeams());
         }
 
+        private void chkIgnoreAccessTeams_CheckedChanged(object sender, EventArgs e)
+        {
+            if (_mode != PickerMode.Teams) return;
+            ExecuteMethod(() => LoadTeams());
+        }
+
         private void lbUsers_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (_mode == PickerMode.Users)
@@ -101,6 +107,7 @@ namespace UserTeamRoleInspector
             lblUsers.Text = isUsers ? "Users" : "Teams";
             chkHideDisabled.Visible = isUsers;
             chkIgnoreAgentTeams.Visible = !isUsers;
+            chkIgnoreAccessTeams.Visible = !isUsers;
             tsbLoad.Text = isUsers ? "Load / Refresh Users" : "Load / Refresh Teams";
 
             // Team mode has no nested source grouping to show, so there's nothing for the tree to
@@ -123,7 +130,7 @@ namespace UserTeamRoleInspector
 
             ConfigureListView(lbUsers, isUsers
                 ? new[] { "Full Name", "Direct Assignments", "Team-Derived Assignments" }
-                : new[] { "Team Name", "Roles", "Members" });
+                : new[] { "Team Name", "Team Type", "Roles", "Members" });
 
             dgvTeam.Columns.Clear();
             if (isUsers)
@@ -289,6 +296,7 @@ namespace UserTeamRoleInspector
         private void LoadTeams(Action onLoaded)
         {
             var ignoreAgentTeams = chkIgnoreAgentTeams.Checked;
+            var ignoreAccessTeams = chkIgnoreAccessTeams.Checked;
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -296,7 +304,7 @@ namespace UserTeamRoleInspector
                 Work = (worker, args) =>
                 {
                     var service = new TeamRoleInspectionService(Service);
-                    args.Result = service.RetrieveTeams(ignoreAgentTeams);
+                    args.Result = service.RetrieveTeams(ignoreAgentTeams, ignoreAccessTeams);
                 },
                 PostWorkCallBack = args =>
                 {
@@ -444,7 +452,7 @@ namespace UserTeamRoleInspector
         }
 
         private static ListViewItem TeamRow(TeamItem t) =>
-            new ListViewItem(new[] { t.Name, t.RoleCount.ToString(), t.MemberCount.ToString() });
+            new ListViewItem(new[] { t.Name, t.TeamType, t.RoleCount.ToString(), t.MemberCount.ToString() });
 
         private void ClearDetail()
         {

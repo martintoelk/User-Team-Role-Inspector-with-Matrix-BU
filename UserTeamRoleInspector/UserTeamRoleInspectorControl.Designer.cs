@@ -21,6 +21,7 @@ namespace UserTeamRoleInspector
         private TextBox txtUserFilter;
         private CheckBox chkHideDisabled;
         private CheckBox chkIgnoreAgentTeams;
+        private CheckBox chkIgnoreAccessTeams;
         private ListView lbUsers;
 
         private FlowLayoutPanel detailCard;
@@ -59,6 +60,7 @@ namespace UserTeamRoleInspector
             this.txtUserFilter = new TextBox();
             this.chkHideDisabled = new CheckBox();
             this.chkIgnoreAgentTeams = new CheckBox();
+            this.chkIgnoreAccessTeams = new CheckBox();
             this.lbUsers = new ListView();
 
             this.detailCard = new FlowLayoutPanel();
@@ -157,6 +159,14 @@ namespace UserTeamRoleInspector
             this.chkIgnoreAgentTeams.Visible = false;
             this.chkIgnoreAgentTeams.CheckedChanged += new System.EventHandler(this.chkIgnoreAgentTeams_CheckedChanged);
 
+            this.chkIgnoreAccessTeams.Text = "Ignore Access Team";
+            this.chkIgnoreAccessTeams.Dock = DockStyle.Top;
+            this.chkIgnoreAccessTeams.AutoSize = true;
+            this.chkIgnoreAccessTeams.Padding = new Padding(2, 4, 0, 4);
+            this.chkIgnoreAccessTeams.Checked = true;
+            this.chkIgnoreAccessTeams.Visible = false;
+            this.chkIgnoreAccessTeams.CheckedChanged += new System.EventHandler(this.chkIgnoreAccessTeams_CheckedChanged);
+
             this.lbUsers.Dock = DockStyle.Fill;
             this.lbUsers.View = View.Details;
             this.lbUsers.FullRowSelect = true;
@@ -173,6 +183,7 @@ namespace UserTeamRoleInspector
             listPanel.Controls.Add(this.lbUsers);
             listPanel.Controls.Add(this.chkHideDisabled);
             listPanel.Controls.Add(this.chkIgnoreAgentTeams);
+            listPanel.Controls.Add(this.chkIgnoreAccessTeams);
             listPanel.Controls.Add(userFilterBox);
             listPanel.Controls.Add(this.lblUsers);
             listPanel.Controls.Add(modeHost);

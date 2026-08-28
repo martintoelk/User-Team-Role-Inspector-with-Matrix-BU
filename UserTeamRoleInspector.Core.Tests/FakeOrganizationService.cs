@@ -43,17 +43,21 @@ namespace UserTeamRoleInspector.Core.Tests
             return Seed(role);
         }
 
-        public Entity SeedTeam(Guid id, string name, Guid businessUnitId, string businessUnitName)
+        public Entity SeedTeam(Guid id, string name, Guid businessUnitId, string businessUnitName, int teamType = 0)
         {
-            var team = new Entity("team", id) { ["name"] = name };
+            var team = new Entity("team", id)
+            {
+                ["name"] = name,
+                ["teamtype"] = new OptionSetValue(teamType)
+            };
             if (businessUnitId != Guid.Empty)
                 team["businessunitid"] = new EntityReference("businessunit", businessUnitId) { Name = businessUnitName };
             return Seed(team);
         }
 
-        public Entity SeedTeamWithDescription(Guid id, string name, Guid businessUnitId, string businessUnitName, string description)
+        public Entity SeedTeamWithDescription(Guid id, string name, Guid businessUnitId, string businessUnitName, string description, int teamType = 0)
         {
-            var team = SeedTeam(id, name, businessUnitId, businessUnitName);
+            var team = SeedTeam(id, name, businessUnitId, businessUnitName, teamType);
             if (description != null)
                 team["description"] = description;
             return team;
@@ -253,6 +257,13 @@ namespace UserTeamRoleInspector.Core.Tests
                 var pattern = Convert.ToString(condition.Values[0]) ?? string.Empty;
                 var expectedText = pattern.Trim('%');
                 return actualText.IndexOf(expectedText, StringComparison.OrdinalIgnoreCase) < 0;
+            }
+
+            if (condition.Operator == ConditionOperator.NotEqual)
+            {
+                if (actual is OptionSetValue optionSetValue && condition.Values[0] is int expectedOptionSetValue)
+                    return optionSetValue.Value != expectedOptionSetValue;
+                return !Equals(actual, condition.Values[0]);
             }
 
             if (condition.Operator != ConditionOperator.Equal)

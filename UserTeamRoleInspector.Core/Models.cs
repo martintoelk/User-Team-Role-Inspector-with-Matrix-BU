@@ -77,6 +77,7 @@ namespace UserTeamRoleInspector.Core
         public string Name { get; set; }
         public Guid BusinessUnitId { get; set; }
         public string BusinessUnitName { get; set; }
+        public string TeamType { get; set; }
 
         /// <summary>Row counts matching <see cref="TeamRoleInspectionService.GetTeamDetail"/>'s
         /// Roles/Members lists for this team.</summary>

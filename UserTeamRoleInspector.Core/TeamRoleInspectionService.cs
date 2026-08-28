@@ -191,12 +191,13 @@ namespace UserTeamRoleInspector.Core
 
         /// <summary>All teams for the picker, ordered by name, with their own Business Unit and
         /// Roles/Members counts (mirrors <see cref="RetrieveUsers"/>'s shape). Agent teams whose
-        /// description contains "power virtual agents" are excluded by default.</summary>
-        public List<TeamItem> RetrieveTeams(bool ignoreAgentTeams = true)
+        /// description contains "power virtual agents" and Access teams are excluded by default.
+        /// The two filters apply independently.</summary>
+        public List<TeamItem> RetrieveTeams(bool ignoreAgentTeams = true, bool ignoreAccessTeams = true)
         {
             var query = new QueryExpression(Team.EntityLogicalName)
             {
-                ColumnSet = new ColumnSet(Team.Fields.Name, Team.Fields.BusinessUnitId, Team.Fields.Description),
+                ColumnSet = new ColumnSet(Team.Fields.Name, Team.Fields.BusinessUnitId, Team.Fields.Description, Team.Fields.TeamType),
                 PageInfo = new PagingInfo { Count = 5000, PageNumber = 1 }
             };
             if (ignoreAgentTeams)
@@ -207,6 +208,8 @@ namespace UserTeamRoleInspector.Core
                     Team.Fields.Description, ConditionOperator.NotLike, "%power virtual agents%");
                 query.Criteria.AddFilter(visibleTeamFilter);
             }
+            if (ignoreAccessTeams)
+                query.Criteria.AddCondition(Team.Fields.TeamType, ConditionOperator.NotEqual, (int)team_type.Zugreifen);
             query.AddOrder(Team.Fields.Name, OrderType.Ascending);
 
             var list = new List<TeamItem>();
@@ -221,7 +224,8 @@ namespace UserTeamRoleInspector.Core
                         Id = t.Id,
                         Name = t.Name,
                         BusinessUnitId = t.BusinessUnitId?.Id ?? Guid.Empty,
-                        BusinessUnitName = t.BusinessUnitId?.Name ?? string.Empty
+                        BusinessUnitName = t.BusinessUnitId?.Name ?? string.Empty,
+                        TeamType = GetTeamTypeLabel(t.TeamType)
                     });
                 }
                 query.PageInfo.PageNumber++;
@@ -240,6 +244,18 @@ namespace UserTeamRoleInspector.Core
             }
 
             return list;
+        }
+
+        private static string GetTeamTypeLabel(team_type? teamType)
+        {
+            switch (teamType)
+            {
+                case team_type.Besitzer: return "Owner";
+                case team_type.Zugreifen: return "Access";
+                case team_type.Sicherheitsgruppe: return "Security Group";
+                case team_type.OfficeGruppe: return "Office Group";
+                default: return "Unknown";
+            }
         }
 
         /// <summary>Everything the inspector shows for one selected team: its own roles

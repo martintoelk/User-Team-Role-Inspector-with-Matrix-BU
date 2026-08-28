@@ -38,9 +38,10 @@ plugin.
 ### Team mode
 
 - **Load / Refresh Teams** loads the team list; the same text filter narrows by name or
-  Business Unit. **Ignore Agent Teams** is checked by default; when checked, teams whose
-  description contains `power virtual agents` are excluded. Changing the checkbox reloads the
-  team list. Each row shows `Name  (Roles: N, Members: M)` counts.
+  Business Unit. **Ignore Agent Teams** and **Ignore Access Team** are checked by default;
+  agent teams whose description contains `power virtual agents` and Access teams are excluded
+  independently. Changing either checkbox reloads the team list. Each row shows its Team Type,
+  Roles, and Members counts.
 - Selecting a team loads its detail card: name, Business Unit, and Roles / Members stat tiles.
 - Results always show as two stacked grids (no tree — there's no nested source grouping to
   show): **Team Roles** (Role, Role Business Unit) and **Team Members** (Name, with a
@@ -83,9 +84,9 @@ copying them can cause version conflicts. Restart XrmToolBox; the plugin appears
 2. Pick **Users** or **Teams** from the toggle above the master list (Users by default).
 3. Click **Load / Refresh Users** (or **Load / Refresh Teams**, if you switched modes).
 4. Optionally type in the filter box above the list to narrow by name or Business Unit. In
-   User mode, disabled users are hidden by default; uncheck **Hide disabled users** to include
-   them. In Team mode, **Ignore Agent Teams** is checked by default; uncheck it to include teams
-   whose description contains `power virtual agents`.
+  User mode, disabled users are hidden by default; uncheck **Hide disabled users** to include
+  them. In Team mode, **Ignore Agent Teams** and **Ignore Access Team** are checked by default;
+  uncheck either one to include that team category while preserving the other filter.
 5. Select a user or team — its detail card and results load automatically.
 6. In User mode, read the detail card: name, Business Unit, a **DISABLED** badge if the user
    is disabled, and the Direct / Team-Derived stat tiles. Toggle **Grid | Tree** to switch how
