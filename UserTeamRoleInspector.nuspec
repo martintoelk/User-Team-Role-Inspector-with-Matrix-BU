@@ -10,10 +10,9 @@
     <description>Read-only XrmToolBox plugin: pick a Dataverse user and see every security role they effectively hold, direct or via team membership, with the owning business unit for each.</description>
     <projectUrl>https://github.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU</projectUrl>
     <!-- <icon> embeds the logo for modern NuGet clients. Forward slash here, not backslash: a
-         .nupkg is a zip, so zip entries always use "/". XrmToolBox also reads the legacy
-         <iconUrl> field directly when it refreshes a registered tool's portal record. -->
+         .nupkg is a zip, so zip entries always use "/". Do not add <iconUrl>: the XrmToolBox
+         portal requires NuGet's hosted icon URL, which NuGet derives from this entry. -->
     <icon>images/icon.png</icon>
-    <iconUrl>https://raw.githubusercontent.com/martintoelk/User-Team-Role-Inspector-with-Matrix-BU/master/nuget/icon.png</iconUrl>
     <readme>README.md</readme>
     <!-- Tags must start with the literal word "XrmToolBox" - that's how the store's crawler finds it. -->
     <tags>XrmToolBox Plugins UserTeamRoleInspector SecurityRoles Teams BusinessUnits</tags>
