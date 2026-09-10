@@ -80,15 +80,15 @@ namespace UserTeamRoleInspector
         private void btnPillGrid_Click(object sender, EventArgs e)
         {
             gridsSplit.Visible = true;
-            tvAssignments.Visible = false;
-            SetPillActive(btnPillGrid, btnPillTree);
+            cardList.Visible = false;
+            SetPillActive(btnPillGrid, btnPillCards);
         }
 
-        private void btnPillTree_Click(object sender, EventArgs e)
+        private void btnPillCards_Click(object sender, EventArgs e)
         {
-            tvAssignments.Visible = true;
+            cardList.Visible = true;
             gridsSplit.Visible = false;
-            SetPillActive(btnPillTree, btnPillGrid);
+            SetPillActive(btnPillCards, btnPillGrid);
         }
 
         // ------------------------------------------------------------------ Mode switch
@@ -110,20 +110,11 @@ namespace UserTeamRoleInspector
             chkIgnoreAccessTeams.Visible = !isUsers;
             tsbLoad.Text = isUsers ? "Load / Refresh Users" : "Load / Refresh Teams";
 
-            // Team mode has no nested source grouping to show, so there's nothing for the tree to
-            // group by - hide the Grid|Tree toggle and always show the twin grids.
-            viewTogglePill.Visible = isUsers;
-            if (isUsers)
-            {
-                tvAssignments.Visible = true;
-                gridsSplit.Visible = false;
-                SetPillActive(btnPillTree, btnPillGrid);
-            }
-            else
-            {
-                tvAssignments.Visible = false;
-                gridsSplit.Visible = true;
-            }
+            // Both modes have sections the cards can band up - Direct/per-team in user mode, the
+            // team's own roles and its members in team mode - so the toggle stays available in both.
+            cardList.Visible = true;
+            gridsSplit.Visible = false;
+            SetPillActive(btnPillCards, btnPillGrid);
 
             lblDirectHeader.Text = isUsers ? "Direct Assignments" : "Team Roles";
             lblTeamHeader.Text = isUsers ? "Team-Derived Assignments" : "Team Members";
@@ -459,9 +450,14 @@ namespace UserTeamRoleInspector
         {
             dgvDirect.Rows.Clear();
             dgvTeam.Rows.Clear();
-            tvAssignments.Nodes.Clear();
-
             var isUsers = _mode == PickerMode.Users;
+            cardList.SetRows(new[]
+            {
+                CardRow.Note(isUsers
+                    ? "Select a user to see the roles they hold."
+                    : "Select a team to see its roles and members.")
+            });
+
             lblName.Text = isUsers ? "Select a user" : "Select a team";
             lblBusinessUnit.Text = "";
             lblDisabledBadge.Visible = false;
@@ -491,7 +487,7 @@ namespace UserTeamRoleInspector
             foreach (var a in team)
                 dgvTeam.Rows.Add(a.RoleName, a.RoleBusinessUnitName, a.SourceTeamName, a.TeamBusinessUnitName);
 
-            PopulateTree(direct, team);
+            PopulateCards(result, direct, team);
 
             UpdateStatus();
         }
@@ -512,6 +508,8 @@ namespace UserTeamRoleInspector
                 dgvDirect.Rows.Add(r.RoleName, r.RoleBusinessUnitName);
             foreach (var m in result.Members)
                 dgvTeam.Rows.Add(m.IsDisabled ? $"{m.Name}  (disabled)" : m.Name);
+
+            PopulateTeamCards(result);
 
             UpdateStatus();
         }
@@ -535,36 +533,104 @@ namespace UserTeamRoleInspector
                 : SortOrder.Descending;
         }
 
-        // 3-level tree: Direct Roles / one node per source team -> Role node -> Role Business Unit leaf.
-        // Users mode only - Team mode has no nested source grouping to show.
-        private void PopulateTree(List<Assignment> direct, List<Assignment> team)
+        // Card rows for user mode: a band per source (Direct, then one per team), each carrying
+        // its assignment count, and one entry per *role name* with that role's business units as
+        // pills. A role scoped to three BUs is one row with three pills, not three rows.
+        private void PopulateCards(UserRoleInspectionResult result, List<Assignment> direct, List<Assignment> team)
         {
-            tvAssignments.BeginUpdate();
-            tvAssignments.Nodes.Clear();
+            var rows = new List<CardRow>();
 
-            var directNode = new TreeNode("Direct Roles");
-            foreach (var a in direct)
+            rows.Add(CardRow.Section("DIRECT ROLES", "systemuserroles", direct.Count, CardAccent.Own));
+            if (direct.Count == 0)
+                rows.Add(CardRow.Note("No roles assigned directly to this user."));
+            else
+                AddRoleEntries(rows, direct.Select(a => (a.RoleName, a.RoleBusinessUnitName)), result.HomeBusinessUnitName);
+
+            var teamGroups = team
+                .GroupBy(a => (a.SourceTeamName, a.TeamBusinessUnitName))
+                .ToList();
+
+            if (teamGroups.Count == 0)
             {
-                var roleNode = new TreeNode(a.RoleName);
-                roleNode.Nodes.Add($"Role Business Unit: {a.RoleBusinessUnitName}");
-                directNode.Nodes.Add(roleNode);
+                rows.Add(CardRow.Section("TEAM-DERIVED ROLES", "teamroles", 0, CardAccent.Derived));
+                rows.Add(CardRow.Note("This user is not a member of any team that holds roles."));
             }
-            tvAssignments.Nodes.Add(directNode);
 
-            foreach (var teamGroup in team.GroupBy(a => (a.SourceTeamName, a.TeamBusinessUnitName)))
+            foreach (var teamGroup in teamGroups)
             {
-                var teamNode = new TreeNode($"Team: {teamGroup.Key.SourceTeamName}  (BU: {teamGroup.Key.TeamBusinessUnitName})");
-                foreach (var a in teamGroup)
+                rows.Add(CardRow.Section(
+                    "TEAM · " + teamGroup.Key.SourceTeamName,
+                    "BU: " + teamGroup.Key.TeamBusinessUnitName,
+                    teamGroup.Count(),
+                    CardAccent.Derived));
+                AddRoleEntries(rows, teamGroup.Select(a => (a.RoleName, a.RoleBusinessUnitName)), result.HomeBusinessUnitName);
+            }
+
+            cardList.SetRows(rows);
+        }
+
+        // Team mode gets the same two-band treatment: the team's own roles, then its members.
+        // Members carry no business unit of their own here - only a badge when the user is disabled.
+        private void PopulateTeamCards(TeamDetailResult result)
+        {
+            var rows = new List<CardRow>();
+
+            rows.Add(CardRow.Section("TEAM ROLES", "teamroles", result.Roles.Count, CardAccent.Own));
+            if (result.Roles.Count == 0)
+                rows.Add(CardRow.Note("No roles are associated with this team."));
+            else
+                AddRoleEntries(rows, result.Roles.Select(r => (r.RoleName, r.RoleBusinessUnitName)), result.BusinessUnitName);
+
+            rows.Add(CardRow.Section("TEAM MEMBERS", "teammembership", result.Members.Count, CardAccent.Derived));
+            if (result.Members.Count == 0)
+            {
+                rows.Add(CardRow.Note("This team has no members."));
+            }
+            else
+            {
+                var alternate = false;
+                foreach (var member in result.Members)
                 {
-                    var roleNode = new TreeNode(a.RoleName);
-                    roleNode.Nodes.Add($"Role Business Unit: {a.RoleBusinessUnitName}");
-                    teamNode.Nodes.Add(roleNode);
+                    var pills = member.IsDisabled
+                        ? new[] { new CardPill("disabled", CardPillStyle.Alert) }
+                        : new CardPill[0];
+                    var row = CardRow.Entry(member.Name, pills);
+                    row.Alternate = alternate;
+                    rows.Add(row);
+                    alternate = !alternate;
                 }
-                tvAssignments.Nodes.Add(teamNode);
             }
 
-            tvAssignments.ExpandAll();
-            tvAssignments.EndUpdate();
+            cardList.SetRows(rows);
+        }
+
+        // One entry per distinct role name, its business units merged into pills. The pill for the
+        // selected record's own business unit is tinted, so "scoped to my own BU" reads at a glance
+        // against the matrix model's cross-BU grants.
+        private static void AddRoleEntries(
+            List<CardRow> rows,
+            IEnumerable<(string RoleName, string BusinessUnitName)> roles,
+            string homeBusinessUnit)
+        {
+            var alternate = false;
+            foreach (var group in roles.GroupBy(r => r.RoleName, StringComparer.OrdinalIgnoreCase))
+            {
+                var pills = group
+                    .Select(r => r.BusinessUnitName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(bu => bu, StringComparer.OrdinalIgnoreCase)
+                    .Select(bu => new CardPill(
+                        bu,
+                        string.Equals(bu, homeBusinessUnit, StringComparison.OrdinalIgnoreCase)
+                            ? CardPillStyle.Home
+                            : CardPillStyle.Neutral))
+                    .ToList();
+
+                var row = CardRow.Entry(group.Key, pills);
+                row.Alternate = alternate;
+                rows.Add(row);
+                alternate = !alternate;
+            }
         }
 
         private void UpdateStatus()

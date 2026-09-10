@@ -46,7 +46,7 @@ Shown for context; distinct from any Role Business Unit or Team Business Unit in
 
 **Source**:
 Which path an Assignment came through: `Direct`, or `Team` (naming the specific team). Drives
-grouping in the tree view and a column in the grid view.
+grouping in the card view and a column in the grid view.
 
 **Team Role** (Team mode):
 A security role associated straight to a team via `teamroles` - the same fact a Team-Derived

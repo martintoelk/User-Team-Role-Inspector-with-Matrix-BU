@@ -33,14 +33,14 @@ namespace UserTeamRoleInspector
 
         private Panel viewTogglePill;
         private Button btnPillGrid;
-        private Button btnPillTree;
+        private Button btnPillCards;
 
         private SplitContainer gridsSplit;
         private Label lblDirectHeader;
         private DataGridView dgvDirect;
         private Label lblTeamHeader;
         private DataGridView dgvTeam;
-        private TreeView tvAssignments;
+        private CardListView cardList;
 
         private StatusStrip statusStrip;
         private ToolStripStatusLabel lblStatus;
@@ -72,14 +72,14 @@ namespace UserTeamRoleInspector
 
             this.viewTogglePill = new Panel();
             this.btnPillGrid = new Button();
-            this.btnPillTree = new Button();
+            this.btnPillCards = new Button();
 
             this.gridsSplit = new SplitContainer();
             this.lblDirectHeader = new Label();
             this.dgvDirect = new DataGridView();
             this.lblTeamHeader = new Label();
             this.dgvTeam = new DataGridView();
-            this.tvAssignments = new TreeView();
+            this.cardList = new CardListView();
 
             this.statusStrip = new StatusStrip();
             this.lblStatus = new ToolStripStatusLabel();
@@ -225,7 +225,7 @@ namespace UserTeamRoleInspector
             this.detailCard.Controls.Add(this.lblDirectTile);
             this.detailCard.Controls.Add(this.lblTeamTile);
 
-            // ---- Grid|Tree segmented toggle, by the detail card / stat tiles ----
+            // ---- Grid|Cards segmented toggle, by the detail card / stat tiles ----
             this.viewTogglePill.Size = new Size(140, 28);
             this.viewTogglePill.Margin = new Padding(24, 12, 0, 0);
             this.viewTogglePill.BackColor = Color.FromArgb(230, 230, 230);
@@ -236,15 +236,15 @@ namespace UserTeamRoleInspector
             this.btnPillGrid.FlatAppearance.BorderSize = 0;
             this.btnPillGrid.Click += new System.EventHandler(this.btnPillGrid_Click);
 
-            this.btnPillTree.Text = "Tree";
-            this.btnPillTree.Size = new Size(70, 28);
-            this.btnPillTree.Left = 70;
-            this.btnPillTree.FlatStyle = FlatStyle.Flat;
-            this.btnPillTree.FlatAppearance.BorderSize = 0;
-            this.btnPillTree.Click += new System.EventHandler(this.btnPillTree_Click);
+            this.btnPillCards.Text = "Cards";
+            this.btnPillCards.Size = new Size(70, 28);
+            this.btnPillCards.Left = 70;
+            this.btnPillCards.FlatStyle = FlatStyle.Flat;
+            this.btnPillCards.FlatAppearance.BorderSize = 0;
+            this.btnPillCards.Click += new System.EventHandler(this.btnPillCards_Click);
 
             this.viewTogglePill.Controls.Add(this.btnPillGrid);
-            this.viewTogglePill.Controls.Add(this.btnPillTree);
+            this.viewTogglePill.Controls.Add(this.btnPillCards);
             this.detailCard.Controls.Add(this.viewTogglePill);
 
             this.gridsSplit.Dock = DockStyle.Fill;
@@ -279,19 +279,19 @@ namespace UserTeamRoleInspector
             teamPanel.Controls.Add(this.lblTeamHeader);
             this.gridsSplit.Panel2.Controls.Add(teamPanel);
 
-            this.tvAssignments.Dock = DockStyle.Fill;
-            this.tvAssignments.Font = new Font("Segoe UI", 9.5f);
+            this.cardList.Dock = DockStyle.Fill;
 
             var detailPanel = new Panel { Dock = DockStyle.Fill };
-            detailPanel.Controls.Add(this.tvAssignments);
+            detailPanel.Controls.Add(this.cardList);
             detailPanel.Controls.Add(this.gridsSplit);
             detailPanel.Controls.Add(this.detailCard);
             this.mainLayout.Controls.Add(detailPanel, 1, 0);
 
-            // Default view on load is Tree, not Grid (decided when resolving #6).
+            // Default view on load is Cards, not Grid (decided when resolving #6; the tree it
+            // replaced spent a whole row per role just to name the role's business unit).
             this.gridsSplit.Visible = false;
-            this.tvAssignments.Visible = true;
-            SetPillActive(this.btnPillTree, this.btnPillGrid);
+            this.cardList.Visible = true;
+            SetPillActive(this.btnPillCards, this.btnPillGrid);
 
             // ---- StatusStrip ----
             this.lblStatus.Text = "Click \"Load / Refresh Users\" after connecting to an environment.";

@@ -24,28 +24,32 @@ plugin.
 
 - **Load / Refresh Users** loads the user list; a text filter above it narrows by name or
   Business Unit, and a **Hide disabled users** checkbox (checked by default) excludes disabled
-  users from the list. Both persist across reloads. Each row shows separate
-  `Direct Assignments` and `Team-Derived Assignments` count columns.
+  users from the list. Both persist across reloads. Each row shows the user's **Business Unit**
+  alongside separate `Direct Assignments` and `Team-Derived Assignments` count columns.
 - Selecting a user loads their detail card: name, **Business Unit**, a **DISABLED** badge for
   disabled users, and Direct / Team-Derived stat tiles.
-- **Grid | Tree** toggle switches how the results are shown — switching never re-queries
+- **Grid | Cards** toggle switches how the results are shown — switching never re-queries
   Dataverse, it just re-renders what's already loaded:
   - **Grid** (two stacked grids): **Direct Assignments** (Role, Role Business Unit) and
     **Team-Derived Assignments** (Role, Role Business Unit, Team, Team Business Unit).
-  - **Tree** (default view on load, 3 levels): **Direct Roles** node, plus one node per source
-    team → Role node → `Role Business Unit: <name>` leaf.
+  - **Cards** (default view on load): a **Direct Roles** band, then one band per source team,
+    each with its assignment count. Every role is a single row carrying its Business Units as
+    pills — a role held in three Business Units is one row with three pills, not three rows —
+    and the pill for the user's own Business Unit is tinted.
 
 ### Team mode
 
 - **Load / Refresh Teams** loads the team list; the same text filter narrows by name or
   Business Unit. **Ignore Agent Teams** and **Ignore Access Team** are checked by default;
   agent teams whose description contains `power virtual agents` and Access teams are excluded
-  independently. Changing either checkbox reloads the team list. Each row shows its Team Type,
-  Roles, and Members counts.
+  independently. Changing either checkbox reloads the team list. Each row shows the team's
+  **Business Unit**, its Team Type, and its Roles and Members counts.
 - Selecting a team loads its detail card: name, Business Unit, and Roles / Members stat tiles.
-- Results always show as two stacked grids (no tree — there's no nested source grouping to
-  show): **Team Roles** (Role, Role Business Unit) and **Team Members** (Name, with a
-  `(disabled)` suffix for disabled members).
+- The same **Grid | Cards** toggle applies: **Grid** shows two stacked grids, **Team Roles**
+  (Role, Role Business Unit) and **Team Members** (Name, with a `(disabled)` suffix for
+  disabled members). **Cards** shows a **Team Roles** band — one row per role with its
+  Business Units as pills, the team's own Business Unit tinted — followed by a **Team
+  Members** band listing the member users, each disabled member carrying a `disabled` pill.
 
 ## Install
 
@@ -89,11 +93,12 @@ copying them can cause version conflicts. Restart XrmToolBox; the plugin appears
   uncheck either one to include that team category while preserving the other filter.
 5. Select a user or team — its detail card and results load automatically.
 6. In User mode, read the detail card: name, Business Unit, a **DISABLED** badge if the user
-   is disabled, and the Direct / Team-Derived stat tiles. Toggle **Grid | Tree** to switch how
+   is disabled, and the Direct / Team-Derived stat tiles. Toggle **Grid | Cards** to switch how
    the results are shown; both reflect the same underlying data, so switching is instant and
    never re-queries Dataverse.
 7. In Team mode, read the detail card: name, Business Unit, and the Roles / Members stat
-   tiles, with the team's roles and member users shown as two grids.
+   tiles, with the team's roles and its member users below — as banded cards or as two grids,
+   whichever the toggle is set to.
 
 ### Opened from the Role Assigner
 
@@ -132,7 +137,8 @@ See `CONTEXT.md` for the full glossary; the short version:
 | `UserTeamRoleInspector.Core/UserTeamRoleInspector.Core.csproj` | Class library (net48), no WinForms/XTB dependency |
 | `UserTeamRoleInspector/Plugin.cs` | XrmToolBox export/metadata (the plugin factory) |
 | `UserTeamRoleInspector/UserTeamRoleInspectorControl.cs` | UI wiring, threading (`WorkAsync`), User/Team mode switch, calls into Core |
-| `UserTeamRoleInspector/UserTeamRoleInspectorControl.Designer.cs` | WinForms UI (master-detail layout, User/Team and Grid/Tree toggles) |
+| `UserTeamRoleInspector/UserTeamRoleInspectorControl.Designer.cs` | WinForms UI (master-detail layout, User/Team and Grid/Cards toggles) |
+| `UserTeamRoleInspector/CardListView.cs` | Owner-drawn card list: section bands with counts, one row per role, Business Units as pills |
 | `UserTeamRoleInspector/UserTeamRoleInspector.csproj` | SDK-style project (net48, WinForms), references Core |
 
 ## License
