@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -129,8 +129,8 @@ namespace UserTeamRoleInspector
             lblTeamHeader.Text = isUsers ? "Team-Derived Assignments" : "Team Members";
 
             ConfigureListView(lbUsers, isUsers
-                ? new[] { "Full Name", "Direct Assignments", "Team-Derived Assignments" }
-                : new[] { "Team Name", "Team Type", "Roles", "Members" });
+                ? new[] { "Full Name", "Business Unit", "Direct Assignments", "Team-Derived Assignments" }
+                : new[] { "Team Name", "Business Unit", "Team Type", "Roles", "Members" });
 
             dgvTeam.Columns.Clear();
             if (isUsers)
@@ -446,13 +446,14 @@ namespace UserTeamRoleInspector
             return new ListViewItem(new[]
             {
                 name,
+                u.BusinessUnitName,
                 u.DirectCount.ToString(),
                 u.TeamCount.ToString()
             });
         }
 
         private static ListViewItem TeamRow(TeamItem t) =>
-            new ListViewItem(new[] { t.Name, t.TeamType, t.RoleCount.ToString(), t.MemberCount.ToString() });
+            new ListViewItem(new[] { t.Name, t.BusinessUnitName, t.TeamType, t.RoleCount.ToString(), t.MemberCount.ToString() });
 
         private void ClearDetail()
         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
@@ -175,7 +175,7 @@ namespace UserTeamRoleInspector
             this.lbUsers.MultiSelect = false;
             this.lbUsers.HeaderStyle = ColumnHeaderStyle.Nonclickable;
             this.lbUsers.Font = new Font("Segoe UI", 10f);
-            ConfigureListView(this.lbUsers, "Full Name", "Direct Assignments", "Team-Derived Assignments");
+            ConfigureListView(this.lbUsers, "Full Name", "Business Unit", "Direct Assignments", "Team-Derived Assignments");
             this.lbUsers.SelectedIndexChanged += new System.EventHandler(this.lbUsers_SelectedIndexChanged);
 
             var listPanel = new Panel { Dock = DockStyle.Fill };
