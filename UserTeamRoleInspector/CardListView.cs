@@ -80,11 +80,15 @@ namespace UserTeamRoleInspector
     /// carrying its business units as pills. A role scoped to three business units is one row
     /// with three pills, not three rows.
     ///
-    /// Owner-drawn on a ListBox rather than a ListView because rows have to grow: when the pills
-    /// don't fit beside the role name they wrap onto their own line, and only ListBox
-    /// (DrawMode.OwnerDrawVariable + MeasureItem) supports variable row heights.
+    /// Rows have to grow - when the pills don't fit beside the role name they wrap onto their own
+    /// line - and this draws and scrolls itself rather than deriving from ListBox to get that. An
+    /// owner-drawn ListBox takes its row heights from WM_MEASUREITEM, which Windows sends to the
+    /// *parent* window for the parent to reflect back to the list; hosted inside XrmToolBox that
+    /// reflection doesn't arrive, so every row collapsed to one line of text while the painting
+    /// still drew 25px-tall rows into it and consecutive rows overlapped. Owning the layout drops
+    /// the dependency on that message.
     /// </summary>
-    internal class CardListView : ListBox
+    internal class CardListView : Control
     {
         // --- metrics (at 100% DPI; everything else is derived from measured text) ---
         private const int PadLeft = 14;
@@ -99,6 +103,7 @@ namespace UserTeamRoleInspector
         private const int PillLineHeight = 21;
         private const int NameGap = 16;
         private const int AccentBarWidth = 4;
+        private const int FallbackWheelRows = 3;
 
         private static readonly Color BandBack = Color.FromArgb(244, 246, 248);
         private static readonly Color BandRule = Color.FromArgb(232, 234, 237);
@@ -135,92 +140,199 @@ namespace UserTeamRoleInspector
         private readonly Font _pillFont = new Font("Segoe UI", 8.25f);
         private readonly Font _badgeFont = new Font("Segoe UI Semibold", 8.25f, FontStyle.Bold);
 
+        private readonly VScrollBar _scroll = new VScrollBar { Dock = DockStyle.Right, Visible = false };
+        private readonly List<CardRow> _rows = new List<CardRow>();
+        /// <summary>Per row: its top in content coordinates, its height, and - for entries - where
+        /// the name and each pill sit relative to that top. Measuring and painting have to agree
+        /// on all of it, so both read this instead of working it out twice.</summary>
+        private readonly List<RowLayout> _layout = new List<RowLayout>();
+
+        private int _contentWidth;
+        private int _contentHeight;
+        /// <summary>The client width the current <see cref="_layout"/> was measured against, so a
+        /// resize that doesn't change it can skip re-measuring. -1 forces the next measure.</summary>
+        private int _measuredAt = -1;
+        private int _offset;
         private int _hoverIndex = -1;
-        private int _lastLayoutWidth;
+        private int _selectedIndex = -1;
 
         public CardListView()
         {
-            DrawMode = DrawMode.OwnerDrawVariable;
-            BorderStyle = BorderStyle.None;
-            IntegralHeight = false;
-            SelectionMode = SelectionMode.One;
             BackColor = Color.White;
+            ForeColor = SystemColors.ControlText;
             Font = new Font("Segoe UI", 9.5f);
-            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.UserPaint | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+            TabStop = true;
+            _scroll.Scroll += (s, e) => ScrollTo(e.NewValue);
+            Controls.Add(_scroll);
         }
 
         /// <summary>Replaces everything shown. Rows are built by the caller so this control
         /// knows nothing about assignments, teams or business units.</summary>
         public void SetRows(IEnumerable<CardRow> rows)
         {
-            BeginUpdate();
-            try
-            {
-                Items.Clear();
-                _hoverIndex = -1;
-                foreach (var row in rows)
-                    Items.Add(row);
-            }
-            finally
-            {
-                EndUpdate();
-            }
-
-            if (Items.Count > 0) TopIndex = 0;
+            _rows.Clear();
+            if (rows != null) _rows.AddRange(rows);
+            _hoverIndex = -1;
+            _selectedIndex = -1;
+            _offset = 0;
+            _measuredAt = -1;
+            Relayout();
         }
 
-        // ListBox measures items once, as they're added, so a resize would otherwise leave rows
-        // sized for the old width - which is exactly when pills need to re-wrap.
-        protected override void OnResize(EventArgs e)
+        // ------------------------------------------------------------------ layout
+
+        protected override void OnSizeChanged(EventArgs e)
         {
-            base.OnResize(e);
-            if (ClientSize.Width == _lastLayoutWidth) return;
-            _lastLayoutWidth = ClientSize.Width;
-            if (Items.Count > 0) RefreshItems();
+            base.OnSizeChanged(e);
+            Relayout();
         }
 
-        protected override void OnMeasureItem(MeasureItemEventArgs e)
+        protected override void OnFontChanged(EventArgs e)
         {
-            var row = RowAt(e.Index);
-            if (row == null) { base.OnMeasureItem(e); return; }
+            base.OnFontChanged(e);
+            _measuredAt = -1; // text metrics changed, so the cached heights can't be reused
+            Relayout();
+        }
 
-            switch (row.Kind)
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            // Rows can arrive before the control has a handle, and without one there is no
+            // Graphics to measure text against - so that first layout has to happen here.
+            if (_rows.Count > 0) Relayout();
+        }
+
+        /// <summary>Measures every row against the current width. The scrollbar takes width away,
+        /// and whether it's needed depends on the heights that width decides, so this measures
+        /// once without it and re-measures only if it turns out to be needed.</summary>
+        private void Relayout()
+        {
+            // Row heights depend only on the width, so a change that leaves the width alone - and
+            // doesn't flip the scrollbar on or off, which would take width away - reuses them.
+            if (_measuredAt == ClientSize.Width && _layout.Count == _rows.Count &&
+                (_contentHeight > ClientSize.Height) == _scroll.Visible)
             {
-                case CardRowKind.Section:
-                    e.ItemHeight = SectionHeight;
-                    break;
-                case CardRowKind.Note:
-                    e.ItemHeight = NoteHeight;
-                    break;
-                default:
-                    e.ItemHeight = LayoutEntry(row, LayoutWidth(), e.Graphics).Height;
-                    break;
+                UpdateScrollBar();
+                Invalidate();
+                return;
             }
+
+            _layout.Clear();
+            _measuredAt = -1;
+            _contentWidth = Math.Max(0, ClientSize.Width);
+            _contentHeight = 0;
+
+            if (_rows.Count > 0 && IsHandleCreated)
+            {
+                using (var g = CreateGraphics())
+                {
+                    _contentHeight = Measure(g, _contentWidth);
+                    if (_contentHeight > ClientSize.Height)
+                    {
+                        _contentWidth = Math.Max(0, ClientSize.Width - _scroll.Width);
+                        _contentHeight = Measure(g, _contentWidth);
+                    }
+                }
+                _measuredAt = ClientSize.Width;
+            }
+
+            UpdateScrollBar();
+            Invalidate();
         }
 
-        protected override void OnDrawItem(DrawItemEventArgs e)
+        private int Measure(Graphics g, int width)
         {
-            var row = RowAt(e.Index);
-            if (row == null) return;
+            _layout.Clear();
+            var top = 0;
+            foreach (var row in _rows)
+            {
+                switch (row.Kind)
+                {
+                    case CardRowKind.Section:
+                        _layout.Add(RowLayout.Fixed(top, SectionHeight));
+                        top += SectionHeight;
+                        break;
+                    case CardRowKind.Note:
+                        _layout.Add(RowLayout.Fixed(top, NoteHeight));
+                        top += NoteHeight;
+                        break;
+                    default:
+                        var entry = LayoutEntry(row, width, g);
+                        _layout.Add(RowLayout.ForEntry(top, entry));
+                        top += entry.Height;
+                        break;
+                }
+            }
+            return top;
+        }
 
+        private void UpdateScrollBar()
+        {
+            var overflow = _contentHeight - ClientSize.Height;
+            if (overflow <= 0)
+            {
+                _offset = 0;
+                _scroll.Visible = false;
+                return;
+            }
+
+            _offset = Math.Min(_offset, overflow);
+            _scroll.Visible = true;
+            // A scrollbar's thumb covers LargeChange of the range, so its last reachable value is
+            // Maximum - LargeChange + 1. Setting Maximum to the full content height is what makes
+            // the end of the list reachable rather than stopping one screenful short.
+            _scroll.LargeChange = Math.Max(1, ClientSize.Height);
+            _scroll.SmallChange = EntryHeight;
+            _scroll.Maximum = Math.Max(0, _contentHeight - 1);
+            _scroll.Value = Math.Min(_offset, _scroll.Maximum);
+        }
+
+        private void ScrollTo(int value)
+        {
+            var clamped = Math.Max(0, Math.Min(value, Math.Max(0, _contentHeight - ClientSize.Height)));
+            if (clamped == _offset) return;
+            _offset = clamped;
+            if (_scroll.Visible && _scroll.Value != clamped) _scroll.Value = clamped;
+            Invalidate();
+        }
+
+        // ------------------------------------------------------------------ painting
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            switch (row.Kind)
+            using (var back = new SolidBrush(BackColor))
+                g.FillRectangle(back, e.ClipRectangle);
+
+            var viewBottom = _offset + ClientSize.Height;
+            for (var i = 0; i < _rows.Count && i < _layout.Count; i++)
             {
-                case CardRowKind.Section:
-                    DrawSection(g, row, e.Bounds);
-                    break;
-                case CardRowKind.Note:
-                    using (var brush = new SolidBrush(BackColor))
-                        g.FillRectangle(brush, e.Bounds);
-                    TextRenderer.DrawText(g, row.Title, _metaFont,
-                        new Rectangle(e.Bounds.X + PadLeft, e.Bounds.Y, e.Bounds.Width - PadLeft - PadRight, e.Bounds.Height),
-                        DimInk, TextFlags | TextFormatFlags.EndEllipsis);
-                    break;
-                default:
-                    DrawEntry(g, row, e.Bounds, e.Index);
-                    break;
+                var layout = _layout[i];
+                if (layout.Top + layout.Height <= _offset) continue;
+                if (layout.Top >= viewBottom) break;
+
+                var bounds = new Rectangle(0, layout.Top - _offset, _contentWidth, layout.Height);
+                if (!bounds.IntersectsWith(e.ClipRectangle)) continue;
+
+                var row = _rows[i];
+                switch (row.Kind)
+                {
+                    case CardRowKind.Section:
+                        DrawSection(g, row, bounds);
+                        break;
+                    case CardRowKind.Note:
+                        TextRenderer.DrawText(g, row.Title, _metaFont,
+                            new Rectangle(bounds.X + PadLeft, bounds.Y, bounds.Width - PadLeft - PadRight, bounds.Height),
+                            DimInk, TextFlags | TextFormatFlags.EndEllipsis);
+                        break;
+                    default:
+                        DrawEntry(g, row, bounds, layout.Entry, i);
+                        break;
+                }
             }
         }
 
@@ -281,17 +393,18 @@ namespace UserTeamRoleInspector
             return width;
         }
 
-        private void DrawEntry(Graphics g, CardRow row, Rectangle bounds, int index)
+        private void DrawEntry(Graphics g, CardRow row, Rectangle bounds, EntryLayout layout, int index)
         {
             var back = BackColor;
             if (row.Alternate) back = AltRow;
             if (index == _hoverIndex) back = HoverRow;
-            if (SelectedIndex == index) back = SelectedRow;
+            if (index == _selectedIndex) back = SelectedRow;
 
-            using (var brush = new SolidBrush(back))
-                g.FillRectangle(brush, bounds);
-
-            var layout = LayoutEntry(row, LayoutWidth(), g);
+            if (back != BackColor)
+            {
+                using (var brush = new SolidBrush(back))
+                    g.FillRectangle(brush, bounds);
+            }
 
             var nameRect = layout.NameRect;
             nameRect.Offset(bounds.X, bounds.Y);
@@ -340,7 +453,7 @@ namespace UserTeamRoleInspector
             var available = width - PadLeft - PadRight;
             var pills = row.Pills;
 
-            if (pills.Count == 0)
+            if (pills.Count == 0 || available <= 0)
             {
                 return new EntryLayout(
                     new Rectangle(PadLeft, 0, Math.Max(0, available), EntryHeight),
@@ -377,7 +490,8 @@ namespace UserTeamRoleInspector
 
             // Otherwise the name keeps the first line and the pills wrap under it, indented.
             var lineLeft = PadLeft + PillIndent;
-            var lineRoom = width - PadRight - lineLeft;
+            // A pill wider than the line still gets its own line rather than none at all.
+            var lineRoom = Math.Max(widths[0], width - PadRight - lineLeft);
             var lineX = lineLeft;
             var lineY = EntryHeight - 3;
 
@@ -398,25 +512,31 @@ namespace UserTeamRoleInspector
                 lineY + PillHeight + 6);
         }
 
-        private int LayoutWidth()
-        {
-            var width = ClientSize.Width;
-            // Measured before the control has been laid out: fall back to something sane so the
-            // first render isn't sized against a zero-width client area.
-            return width > 40 ? width : 360;
-        }
+        // ------------------------------------------------------------------ input
 
-        private CardRow RowAt(int index) =>
-            index >= 0 && index < Items.Count ? Items[index] as CardRow : null;
+        /// <summary>Index of the entry row under a client point, or -1 for bands, notes and gaps.</summary>
+        private int EntryAt(Point location)
+        {
+            if (location.X < 0 || location.X > _contentWidth) return -1;
+
+            var y = location.Y + _offset;
+            for (var i = 0; i < _layout.Count; i++)
+            {
+                if (y < _layout[i].Top) return -1;
+                if (y >= _layout[i].Top + _layout[i].Height) continue;
+                return _rows[i].Kind == CardRowKind.Entry ? i : -1;
+            }
+            return -1;
+        }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            var index = IndexFromPoint(e.Location);
+            var index = EntryAt(e.Location);
             if (index == _hoverIndex) return;
 
             var previous = _hoverIndex;
-            _hoverIndex = RowAt(index)?.Kind == CardRowKind.Entry ? index : -1;
+            _hoverIndex = index;
             InvalidateRow(previous);
             InvalidateRow(_hoverIndex);
         }
@@ -429,9 +549,68 @@ namespace UserTeamRoleInspector
             InvalidateRow(previous);
         }
 
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            Focus();
+
+            var index = EntryAt(e.Location);
+            if (index == _selectedIndex) return;
+
+            var previous = _selectedIndex;
+            _selectedIndex = index;
+            InvalidateRow(previous);
+            InvalidateRow(_selectedIndex);
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+            if (!_scroll.Visible) return;
+
+            var lines = SystemInformation.MouseWheelScrollLines;
+            if (lines <= 0) lines = FallbackWheelRows;
+            ScrollTo(_offset - e.Delta * lines * EntryHeight / 120);
+        }
+
+        protected override bool IsInputKey(Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.Up:
+                case Keys.Down:
+                case Keys.PageUp:
+                case Keys.PageDown:
+                case Keys.Home:
+                case Keys.End:
+                    return true;
+                default:
+                    return base.IsInputKey(keyData);
+            }
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (!_scroll.Visible) return;
+
+            switch (e.KeyCode)
+            {
+                case Keys.Up: ScrollTo(_offset - EntryHeight); break;
+                case Keys.Down: ScrollTo(_offset + EntryHeight); break;
+                case Keys.PageUp: ScrollTo(_offset - ClientSize.Height); break;
+                case Keys.PageDown: ScrollTo(_offset + ClientSize.Height); break;
+                case Keys.Home: ScrollTo(0); break;
+                case Keys.End: ScrollTo(_contentHeight); break;
+                default: return;
+            }
+            e.Handled = true;
+        }
+
         private void InvalidateRow(int index)
         {
-            if (index >= 0 && index < Items.Count) Invalidate(GetItemRectangle(index));
+            if (index < 0 || index >= _layout.Count) return;
+            Invalidate(new Rectangle(0, _layout[index].Top - _offset, _contentWidth, _layout[index].Height));
         }
 
         private static GraphicsPath RoundedRect(Rectangle rect, int radius)
@@ -476,6 +655,27 @@ namespace UserTeamRoleInspector
                 PillRects = pillRects;
                 Height = height;
             }
+        }
+
+        private struct RowLayout
+        {
+            public readonly int Top;
+            public readonly int Height;
+            /// <summary>Only meaningful when the row is an entry.</summary>
+            public readonly EntryLayout Entry;
+
+            private RowLayout(int top, int height, EntryLayout entry)
+            {
+                Top = top;
+                Height = height;
+                Entry = entry;
+            }
+
+            public static RowLayout Fixed(int top, int height) =>
+                new RowLayout(top, height, default(EntryLayout));
+
+            public static RowLayout ForEntry(int top, EntryLayout entry) =>
+                new RowLayout(top, entry.Height, entry);
         }
     }
 }

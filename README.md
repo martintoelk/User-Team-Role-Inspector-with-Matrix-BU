@@ -138,7 +138,7 @@ See `CONTEXT.md` for the full glossary; the short version:
 | `UserTeamRoleInspector/Plugin.cs` | XrmToolBox export/metadata (the plugin factory) |
 | `UserTeamRoleInspector/UserTeamRoleInspectorControl.cs` | UI wiring, threading (`WorkAsync`), User/Team mode switch, calls into Core |
 | `UserTeamRoleInspector/UserTeamRoleInspectorControl.Designer.cs` | WinForms UI (master-detail layout, User/Team and Grid/Cards toggles) |
-| `UserTeamRoleInspector/CardListView.cs` | Owner-drawn card list: section bands with counts, one row per role, Business Units as pills |
+| `UserTeamRoleInspector/CardListView.cs` | Self-drawn, self-scrolling card list: section bands with counts, one row per role, Business Units as pills |
 | `UserTeamRoleInspector/UserTeamRoleInspector.csproj` | SDK-style project (net48, WinForms), references Core |
 
 ## License
